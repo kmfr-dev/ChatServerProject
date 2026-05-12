@@ -45,6 +45,14 @@
 build/
 Build/
 build-*/
+x64/
+Release/
+Debug/
+*.idb
+*.recipe
+*.res
+*.tlog
+
 
 # CMake generated files
 CMakeFiles/
