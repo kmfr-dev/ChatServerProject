@@ -11,9 +11,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(lpCmdLine);
 
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+   /* _CrtSetBreakAlloc(242);
+    _CrtSetBreakAlloc(235);
+    _CrtSetBreakAlloc(231);*/
 
     
-    if (CChatServerApp::GetInstance()->Init(hInstance))
+    if (!CChatServerApp::GetInstance()->Init(hInstance))
     {
         CChatServerApp::DestroyInstance();
         return 1;

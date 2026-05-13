@@ -22,19 +22,32 @@ bool CGUIManager::Init(HWND _hWnd, ID3D11Device* _Device, ID3D11DeviceContext* _
 	ImGui_ImplWin32_Init(_hWnd);
 	ImGui_ImplDX11_Init(_Device, _Context);
 
-	mClearColor = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-
 	return true;
 }
 
-void CGUIManager::Run()
-{
-
-}
-
-void CGUIManager::End()
+void CGUIManager::Shutdown()
 {
 	ImGui_ImplDX11_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
+}
+
+void CGUIManager::StartFrame()
+{
+	ImGui_ImplDX11_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+}
+
+void CGUIManager::EndFrame()
+{
+	ImGui::Render();
+	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+}
+
+void CGUIManager::RenderTest()
+{
+	ImGui::Begin("Chat Server!!");
+	ImGui::Text("This is Log");
+	ImGui::End();
 }

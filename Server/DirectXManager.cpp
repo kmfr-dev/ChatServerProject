@@ -89,6 +89,8 @@ void CDirectXManager::CleanupRenderTarget()
 bool CDirectXManager::Init(HWND _hWnd)
 {
 	mhWnd = _hWnd;
+	
+	mClearColor = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
 	// Init device
 	if (!CreateDevice())
@@ -100,7 +102,32 @@ bool CDirectXManager::Init(HWND _hWnd)
 	return true;
 }
 
-void CDirectXManager::End()
+void CDirectXManager::Shutdown()
 {
 	CleanupDevice();
+}
+
+void CDirectXManager::StartFrame()
+{
+	const float clearColorWithAlpha[4] = { mClearColor.x * mClearColor.w,
+			mClearColor.y * mClearColor.w, mClearColor.z * mClearColor.w, mClearColor.w };
+
+	mContext->OMSetRenderTargets(1, &mRenderTargetView, nullptr);
+	mContext->ClearRenderTargetView(mRenderTargetView, clearColorWithAlpha);
+}
+
+void CDirectXManager::EndFrame()
+{
+	mSwapChain->Present(1, 0);
+}
+
+void CDirectXManager::ResizeWindow(UINT _ResizeWidth, UINT _ResizeHeight)
+{
+	// Handle window resize (we don't resize directly in the WM_SIZE handler)
+	if (_ResizeWidth != 0 && _ResizeHeight != 0)
+	{
+		CleanupRenderTarget();
+		mSwapChain->ResizeBuffers(0, _ResizeWidth, _ResizeHeight, DXGI_FORMAT_UNKNOWN, 0);
+		CreateRenderTarget();
+	}
 }

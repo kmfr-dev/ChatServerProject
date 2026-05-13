@@ -40,9 +40,8 @@ bool CChatServerApp::Init(HINSTANCE _hInstance)
 	
 	mWindowManager->ShowWindow();
 
-
 	mGUIManager = new CGUIManager;
-	if (mGUIManager->Init(mWindowManager->GethWnd(), mDirectXManager->GetDevice(), 
+	if (!mGUIManager->Init(mWindowManager->GethWnd(), mDirectXManager->GetDevice(), 
 		mDirectXManager->GetContext()))
 	{
 		delete mGUIManager;
@@ -56,14 +55,35 @@ bool CChatServerApp::Init(HINSTANCE _hInstance)
 
 void CChatServerApp::Run()
 {
-	// TODO ..
+	bool done = false;
+
+	while (!done)
+	{
+		done = mWindowManager->MessageLoop();
+
+		if (done)
+			break;
+
+		ResizeWindow();
+
+		mDirectXManager->StartFrame();
+		mGUIManager->StartFrame();
+
+		// TODO 클라이언트에게 받은 채팅 렌더
+
+		WaitForMultipleObjects()
+		mGUIManager->RenderTest();
+
+		mGUIManager->EndFrame();
+		mDirectXManager->EndFrame();
+	}
 }
 
 void CChatServerApp::Shutdown()
 {
 	if (mGUIManager)
 	{
-		mGUIManager->End();
+		mGUIManager->Shutdown();
 
 		delete mGUIManager;
 		mGUIManager = nullptr;
@@ -71,7 +91,7 @@ void CChatServerApp::Shutdown()
 
 	if (mDirectXManager)
 	{
-		mDirectXManager->End();
+		mDirectXManager->Shutdown();
 
 		delete mDirectXManager;
 		mDirectXManager = nullptr;
@@ -79,9 +99,17 @@ void CChatServerApp::Shutdown()
 
 	if (mWindowManager)
 	{
-		mWindowManager->End();
+		mWindowManager->Shutdown();
 
 		delete mWindowManager;
 		mWindowManager = nullptr;
 	}
+}
+
+void CChatServerApp::ResizeWindow()
+{
+	mDirectXManager->ResizeWindow(mWindowManager->GetResizeWidth(),
+		mWindowManager->GetResizeHeight());
+
+	mWindowManager->ClearResizeResoultion();
 }

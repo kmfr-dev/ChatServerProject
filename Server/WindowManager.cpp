@@ -43,7 +43,11 @@ bool CWindowManager::Init(HINSTANCE _hInstance)
     if (atom == 0)
         return false;
 
-    mhWnd = ::CreateWindowW(mWC.lpszClassName, L"Chat Server App", WS_OVERLAPPEDWINDOW, 100, 100, 300, 400, nullptr, nullptr, mWC.hInstance, nullptr);
+    ImGui_ImplWin32_EnableDpiAwareness();
+    mMainScale = ImGui_ImplWin32_GetDpiScaleForMonitor
+        (::MonitorFromWindow(mhWnd, MONITOR_DEFAULTTONEAREST));
+
+    mhWnd = ::CreateWindowW(mWC.lpszClassName, L"Chat Server App", WS_OVERLAPPEDWINDOW, 100, 100, (int)300 * mMainScale, (int)400 * mMainScale, nullptr, nullptr, mWC.hInstance, nullptr);
 
     if (nullptr == mhWnd)
         return false;
@@ -51,7 +55,24 @@ bool CWindowManager::Init(HINSTANCE _hInstance)
     return true;
 }
 
-void CWindowManager::End()
+bool CWindowManager::MessageLoop()
+{
+    bool done = false;
+    
+    MSG msg;
+    
+    while (::PeekMessage(&msg, nullptr, 0U, 0U, PM_REMOVE))
+    {
+        ::TranslateMessage(&msg);
+        ::DispatchMessage(&msg);
+        if (msg.message == WM_QUIT)
+            done = true;
+    }
+
+    return done;
+}
+
+void CWindowManager::Shutdown()
 {
     ::DestroyWindow(mhWnd);
     UnRegisterWindowClass();
@@ -66,4 +87,9 @@ void CWindowManager::ShowWindow()
 {
     ::ShowWindow(mhWnd, SW_SHOWDEFAULT);
     ::UpdateWindow(mhWnd);
+}
+
+void CWindowManager::ClearResizeResoultion()
+{
+    mResizeWidth = mResizeHeight = 0;
 }

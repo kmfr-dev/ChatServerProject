@@ -15,14 +15,22 @@ private:
 
 public:
 	bool Init(HINSTANCE _hInstance);
-	void End();
+	bool MessageLoop();
+	void Shutdown();
 
 public:
 	void UnRegisterWindowClass();
 	void ShowWindow();
+	void ClearResizeResoultion();
 
 public:
-	HWND GethWnd() { return mhWnd; }
+	void StartFrame();
+	void EndFrame();
+	
+public:
+	HWND GethWnd() const { return mhWnd; }
+	UINT GetResizeWidth() const { return mResizeWidth; }
+	UINT GetResizeHeight() const { return mResizeWidth; }
 
 private:
 	HINSTANCE mhInst = 0;
@@ -34,5 +42,7 @@ private:
 
 	static UINT mResizeWidth;
 	static UINT mResizeHeight;
+
+	float mMainScale = 0.f;
 };
 

@@ -1,10 +1,12 @@
 #pragma once
 
-#include <d3d11.h>
 #include "DefineHeaders.h"
 #include "Define.h"
 
+#include "winnt.h"
 
+
+MAXIMUM_WAIT_OBJECTS
 class CDirectXManager
 {
 public:
@@ -19,7 +21,14 @@ private:
 
 public:
 	bool Init(HWND _hWnd);
-	void End();
+	void Shutdown();
+	
+public:
+	void StartFrame();
+	void EndFrame();
+
+public:
+	void ResizeWindow(UINT _ResizeWidth, UINT _ResizeHeight);
 
 public:
 	ID3D11Device* GetDevice() const { return mDevice; }
@@ -31,5 +40,7 @@ private:
 	ID3D11DeviceContext* mContext = nullptr;
 	IDXGISwapChain* mSwapChain = nullptr;
 	ID3D11RenderTargetView* mRenderTargetView = nullptr;
+
+	ImVec4 mClearColor = {};
 };
 

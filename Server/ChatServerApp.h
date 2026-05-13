@@ -37,6 +37,9 @@ public:
 	void Shutdown();
 
 public:
+	void ResizeWindow();
+
+public:
 	CWindowManager* GetWindowManager() const { return mWindowManager; }
 	CDirectXManager* GetDirectXManager() const { return mDirectXManager; }
 	CGUIManager* GetGUIManager() const { return mGUIManager; }
