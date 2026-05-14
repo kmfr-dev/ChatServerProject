@@ -1,36 +1,33 @@
 #pragma once
 
 #include "resource.h"
+#include "Define.h"
+#include "DefineHeaders.h"
 
 class CServer
 {
+	friend class CChatServerApp;
+
 private:
 	CServer() {};
 	~CServer() {};
-
-public:
-	static CServer* GetInstance()
-	{
-		if (nullptr == mInstance)
-			mInstance = new CServer;
-
-		return mInstance;
-	}
-
-	static void DestroyInstance()
-	{
-		if (mInstance)
-		{
-			delete mInstance;
-			mInstance = nullptr;
-		}
-	}
 
 public:
 	int		Start();
 	void	End();
 
 private:
-	static CServer* mInstance;
+	void InitThread();
 
+private:
+	void AcceptClient();
+	void RecvChat();
+
+private:
+	SOCKET mListeningSocket = {};
+	HANDLE mhIOCP = {};
+
+	int mThreadCount = 0;
+	std::thread mAcceptThread;
+	std::vector<std::thread> mWorkerThreads;
 };

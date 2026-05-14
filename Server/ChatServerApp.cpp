@@ -50,6 +50,15 @@ bool CChatServerApp::Init(HINSTANCE _hInstance)
 		return false;
 	}
 
+	mServer = new CServer;
+	if (0 != mServer->Start())
+	{
+		delete mServer;
+		mServer = nullptr;
+
+		return false;
+	}
+
 	return true;
 }
 
@@ -69,9 +78,6 @@ void CChatServerApp::Run()
 		mDirectXManager->StartFrame();
 		mGUIManager->StartFrame();
 
-		// TODO 클라이언트에게 받은 채팅 렌더
-
-		WaitForMultipleObjects()
 		mGUIManager->RenderTest();
 
 		mGUIManager->EndFrame();
@@ -104,6 +110,7 @@ void CChatServerApp::Shutdown()
 		delete mWindowManager;
 		mWindowManager = nullptr;
 	}
+
 }
 
 void CChatServerApp::ResizeWindow()

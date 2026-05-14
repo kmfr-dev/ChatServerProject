@@ -3,10 +3,6 @@
 #include "DefineHeaders.h"
 #include "Define.h"
 
-#include "winnt.h"
-
-
-MAXIMUM_WAIT_OBJECTS
 class CDirectXManager
 {
 public:
