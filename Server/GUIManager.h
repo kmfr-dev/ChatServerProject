@@ -15,6 +15,6 @@ public:
 
 	void StartFrame();
 	void EndFrame();
-	void RenderTest();
+	void RenderChat(const std::vector<std::string>& _ChatList);
 };
 

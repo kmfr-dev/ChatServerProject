@@ -138,8 +138,10 @@
     <ClInclude Include="Define.h" />
     <ClInclude Include="DefineHeaders.h" />
     <ClInclude Include="DirectXManager.h" />
+    <ClInclude Include="Enum.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GUIManager.h" />
+    <ClInclude Include="MessageManager.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="Server.h" />
     <ClInclude Include="targetver.h" />
@@ -158,6 +160,7 @@
     <ClCompile Include="DirectXManager.cpp" />
     <ClCompile Include="GUIManager.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="MessageManager.cpp" />
     <ClCompile Include="Server.cpp" />
     <ClCompile Include="WindowManager.cpp" />
   </ItemGroup>

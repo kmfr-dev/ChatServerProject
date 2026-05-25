@@ -8,9 +8,12 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <set>
 
 #include <WinSock2.h>
 #include <thread>
+#include <mutex>
 
+#include "Enum.h"
 #include "imgui.h"
 #include "crtdbg.h"

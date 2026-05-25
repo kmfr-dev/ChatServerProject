@@ -5,7 +5,9 @@
 class CWindowManager;
 class CDirectXManager;
 class CGUIManager;
+class CMessageManager;
 class CServer;
+
 
 class CChatServerApp
 {
@@ -43,6 +45,7 @@ public:
 	CWindowManager* GetWindowManager() const { return mWindowManager; }
 	CDirectXManager* GetDirectXManager() const { return mDirectXManager; }
 	CGUIManager* GetGUIManager() const { return mGUIManager; }
+	CMessageManager* GetMessageManager() const { return mMessageManager; }
 
 private:
 	static CChatServerApp* mInstance;
@@ -51,6 +54,7 @@ private:
 	CWindowManager* mWindowManager = nullptr;
 	CDirectXManager* mDirectXManager = nullptr;
 	CGUIManager* mGUIManager = nullptr;
+	CMessageManager* mMessageManager = nullptr;
 	CServer* mServer = nullptr;
 };
 

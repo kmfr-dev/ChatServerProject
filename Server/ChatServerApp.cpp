@@ -1,8 +1,9 @@
 #include "ChatServerApp.h"
 #include "WindowManager.h"
 #include "DirectXManager.h"
-#include "Server.h"
 #include "GUIManager.h"
+#include "MessageManager.h"
+#include "Server.h"
 
 CChatServerApp* CChatServerApp::mInstance = nullptr;
 
@@ -39,6 +40,15 @@ bool CChatServerApp::Init(HINSTANCE _hInstance)
 	}
 	
 	mWindowManager->ShowWindow();
+
+	mMessageManager = new CMessageManager;
+	if (!mMessageManager->Init())
+	{
+		delete mMessageManager;
+		mMessageManager = nullptr;
+
+		return false;
+	}
 
 	mGUIManager = new CGUIManager;
 	if (!mGUIManager->Init(mWindowManager->GethWnd(), mDirectXManager->GetDevice(), 
@@ -78,7 +88,7 @@ void CChatServerApp::Run()
 		mDirectXManager->StartFrame();
 		mGUIManager->StartFrame();
 
-		mGUIManager->RenderTest();
+		mGUIManager->RenderChat(mMessageManager->GetRecvChats());
 
 		mGUIManager->EndFrame();
 		mDirectXManager->EndFrame();
@@ -111,6 +121,21 @@ void CChatServerApp::Shutdown()
 		mWindowManager = nullptr;
 	}
 
+	if (mServer)
+	{
+		mServer->End();
+
+		delete mServer;
+		mServer = nullptr;
+	}
+
+	if (mMessageManager)
+	{
+		mMessageManager->ClearChatList();
+
+		delete mMessageManager;
+		mMessageManager = nullptr;
+	}
 }
 
 void CChatServerApp::ResizeWindow()

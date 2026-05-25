@@ -45,9 +45,15 @@ void CGUIManager::EndFrame()
 	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 }
 
-void CGUIManager::RenderTest()
+void CGUIManager::RenderChat(const std::vector<std::string>& _ChatList)
 {
-	ImGui::Begin("Chat Server!!");
-	ImGui::Text("This is Log");
+	ImGui::Begin("Chat Server");
+	ImGui::Text("Log");
+
+	for (int i = 0; i < _ChatList.size(); ++i)
+	{
+		ImGui::Text(_ChatList[i].c_str());
+	}
+
 	ImGui::End();
 }
