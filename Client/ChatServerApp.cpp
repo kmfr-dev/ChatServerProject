@@ -2,6 +2,8 @@
 #include "WindowManager.h"
 #include "DirectXManager.h"
 #include "GUIManager.h"
+#include "MessageManager.h"
+#include "Client.h"
 
 CChatServerApp* CChatServerApp::mInstance = nullptr;
 
@@ -39,6 +41,24 @@ bool CChatServerApp::Init(HINSTANCE _hInstance)
 
 	mWindowManager->ShowWindow();
 
+	mClient = new CClient;
+	if (!mClient->Init())
+	{
+		delete mClient;
+		mClient = nullptr;
+
+		return false;
+	}
+
+	mMessageManager = new CMessageManager;
+	if (!mMessageManager->Init())
+	{
+		delete mMessageManager;
+		mMessageManager = nullptr;
+
+		return false;
+	}
+
 	mGUIManager = new CGUIManager;
 	if (!mGUIManager->Init(mWindowManager->GethWnd(), mDirectXManager->GetDevice(),
 		mDirectXManager->GetContext()))
@@ -68,7 +88,7 @@ void CChatServerApp::Run()
 		mDirectXManager->StartFrame();
 		mGUIManager->StartFrame();
 
-		//mGUIManager->RenderChat();
+		mGUIManager->RenderChat(*this, mMessageManager->GetRecvChats());
 
 		mGUIManager->EndFrame();
 		mDirectXManager->EndFrame();
@@ -77,6 +97,23 @@ void CChatServerApp::Run()
 
 void CChatServerApp::Shutdown()
 {
+	if (mClient)
+	{
+		mClient->End();
+
+		delete mClient;
+		mClient = nullptr;
+	}
+
+	if (mMessageManager)
+	{
+		mMessageManager->End();
+		mMessageManager->ClearChatList();
+
+		delete mMessageManager;
+		mMessageManager = nullptr;
+	}
+
 	if (mGUIManager)
 	{
 		mGUIManager->Shutdown();
@@ -100,14 +137,6 @@ void CChatServerApp::Shutdown()
 		delete mWindowManager;
 		mWindowManager = nullptr;
 	}
-
-	/*if (mMessageManager)
-	{
-		mMessageManager->ClearChatList();
-
-		delete mMessageManager;
-		mMessageManager = nullptr;
-	}*/
 }
 
 void CChatServerApp::ResizeWindow()

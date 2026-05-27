@@ -33,7 +33,7 @@ int CServer::Start()
 	SOCKADDR_IN serv_Addr = { 0 };
 	serv_Addr.sin_family = AF_INET;
 	serv_Addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	serv_Addr.sin_port = htons(SERVER_PORT);
+	serv_Addr.sin_port = htons(PORT);
 
 	int bindResult = bind(mListeningSocket, (sockaddr*)&serv_Addr, sizeof(serv_Addr));
 
@@ -62,7 +62,6 @@ int CServer::Start()
 		std::cerr << "CP object create failed. error code: " << GetLastError() << std::endl;
 		return 1;
 	}
-	
 	
 	// 클라이언트 연결 요청을 수락할 쓰레드 생성
 	mRunning = true;
@@ -111,7 +110,7 @@ void CServer::InitThread()
 
 	for (int i = 0; i < mThreadCount; ++i)
 	{
-		mWorkerThreads.emplace_back(std::thread(&CServer::RecvChat, this));
+		mWorkerThreads.emplace_back(std::thread(&CServer::ProcessIO, this));
 	}
 }
 
@@ -120,28 +119,55 @@ void CServer::RegisterRecv(CClient* _Client)
 	if (nullptr == _Client)
 		return;
 
-	_Client->rwMode = IO_MODE::READ;
-	_Client->WSABuf.buf = _Client->Buffer;
-	_Client->WSABuf.len = BUF_SIZE;
+	ZeroMemory(&_Client->BufferInfo.Overlapped, sizeof(OVERLAPPED));
+
+	_Client->BufferInfo.rwMode = IO_MODE::READ;
+	_Client->BufferInfo.WSABuf.buf = _Client->BufferInfo.Buffer;
+	_Client->BufferInfo.WSABuf.len = BUF_SIZE;
 
 	DWORD flags = 0;
-	WSARecv(_Client->ClientSock, &_Client->WSABuf, 1, nullptr, &flags, &_Client->Overlapped, nullptr);
+	WSARecv(_Client->ClientSock, &_Client->BufferInfo.WSABuf, 1, nullptr, &flags, &_Client->BufferInfo.Overlapped, nullptr);
 }
 
-void CServer::BroadCastMsg(const std::string& _Message)
+void CServer::BroadCastMsg(EChatType _Type, const std::string& _Message)
 {
+	FChatPacket packet;
+	packet.Type = _Type;
+	strncpy_s(packet.Message, _Message.c_str(), PACKET_SIZE);
+
 	mClientMutex.lock();
 
 	// 전체 클라이언트에게 브로드 캐스트
 	for (const std::pair<CClient*, std::string>& pair : mClients)
 	{
-		if (nullptr == pair.first)
+		const CClient* client = pair.first;
+
+		if (nullptr == client || INVALID_SOCKET == client->ClientSock)
 			continue;
 
-		if (INVALID_SOCKET == pair.first->ClientSock)
-			continue;
+		// 송신용 데이터 동적할당, 수신 완료 후 워커 쓰레드에서 해제함.
+		FBufferInfo* sendData = new FBufferInfo;
+		ZeroMemory(sendData, sizeof(FBufferInfo));
 
-		send(pair.first->ClientSock, _Message.c_str(), (int)_Message.size(), 0);
+		sendData->rwMode = IO_MODE::WRITE;
+		
+		// 버퍼에 패킷정보 복사
+		memcpy(sendData->Buffer, &packet, sizeof(packet));
+		sendData->WSABuf.buf = sendData->Buffer;
+		sendData->WSABuf.len = sizeof(packet);
+
+		DWORD sendBytes = 0;
+
+		// 비동기 송신 함수 호출
+		if (SOCKET_ERROR == WSASend(client->ClientSock, &sendData->WSABuf, 1, &sendBytes,
+			0, &sendData->Overlapped, nullptr))
+		{
+			// 에러 발생시 위에서 동적할당한 데이터 메모리 헤제
+			if (WSAGetLastError() != WSA_IO_PENDING)
+			{
+				delete sendData;
+			}
+		}
 	}
 
 	mClientMutex.unlock();
@@ -151,6 +177,7 @@ void CServer::AddChatMsg(const std::string& _Message)
 {
 	mClientMutex.lock();
 
+	// 메시지 매니저 배열에 메세지 추가
 	CMessageManager* MsgManager = CChatServerApp::GetInstance()->GetMessageManager();
 	if (nullptr != MsgManager)
 	{
@@ -169,10 +196,14 @@ void CServer::ExitClient(CClient* _Client)
 	mClientMutex.lock();
 
 	int ID = _Client->ID;
-	
+	// 클라 이름 복사 해두기
+	std::string clientName = mClients[ID].second;
+
+	// 클라 소켓 닫기
 	closesocket(_Client->ClientSock);
 	_Client->ClientSock = INVALID_SOCKET;
-
+	
+	mClients[ID].second = "";
 	mClients[ID].first = nullptr;
 	mDeathIDs.insert(ID);
 
@@ -180,12 +211,21 @@ void CServer::ExitClient(CClient* _Client)
 
 	// 뮤텍스 언락
 	mClientMutex.unlock();
+
+	// 나간 클라이언트 메시지 브로드 캐스트
+	if (!clientName.empty())
+	{
+		std::string exitMsg = "[" + clientName + "] 님이 나가셨습니다.";
+		AddChatMsg(exitMsg);   
+		BroadCastMsg(EChatType::CHAT_TYPE_EXIT, exitMsg);
+	}
 }
 
 void CServer::ShutdownAllClient()
 {
 	mClientMutex.lock();
 
+	// 모든 클라 순회 - 소켓의 우아한 종료 
 	for (const std::pair<CClient*, std::string>& pair : mClients)
 	{
 		if (nullptr == pair.first)
@@ -204,6 +244,7 @@ void CServer::ClearClient()
 {
 	mClientMutex.lock();
 
+	// 모든 클라 순회 - 클라 소켓 닫기 및 메모리 해제
 	for (std::pair<CClient*, std::string>& pair : mClients)
 	{
 		if (nullptr == pair.first)
@@ -274,7 +315,7 @@ void CServer::AcceptClient()
 	}
 }
 
-void CServer::RecvChat()
+void CServer::ProcessIO()
 {
 	while (true)
 	{
@@ -282,7 +323,7 @@ void CServer::RecvChat()
 		CClient*	client = nullptr;
 		OVERLAPPED* overlapped = nullptr;
 
-		// IOCP 완료큐에서 이벤트를 꺼낸다. 올 때까지 블로킹.
+		// ** IOCP 완료큐에서 이벤트를 꺼낸다. 올 때까지 블로킹.
 		BOOL result = GetQueuedCompletionStatus(mhIOCP, &byetsRansferred, (PULONG_PTR)&client, &overlapped, INFINITE);
 
 		// 실패했다면
@@ -301,19 +342,64 @@ void CServer::RecvChat()
 		if (0 == byetsRansferred)
 		{
 			ExitClient(client);
+
 			continue;
 		}
 
-		// 여기서 부터 정상 수신
-		std::string chatMsg(client->Buffer, byetsRansferred);
+		// I/O 완료 정보를 얻어옴
+		FBufferInfo* IOData = (FBufferInfo*)overlapped;
 
-		// 메세지 매니저에 저장
-		AddChatMsg(chatMsg);
+		// 만약 쓰기모드면, Server -> Client로 전송한 것이므로 
+		// 동적할당한 송신데이터를 해제.
+ 		if (IOData->rwMode == IO_MODE::WRITE)
+		{
+			delete IOData;
+			continue;
+		}
 
-		// 전체 클라에게 브로드 캐스트
-		BroadCastMsg(chatMsg);
+		// 읽기 모드면, Client -> Server로 전송한 정보
+		if (IOData->rwMode == IO_MODE::READ)
+		{
+			// 클라이언트가 보낸 패킷정보를 얻어옴
+			FChatPacket* packet = (FChatPacket*)client->BufferInfo.Buffer;
 
-		// 다음 수신을 예약
-		RegisterRecv(client);
+			EChatType chatType = packet->Type;
+
+			// chatMsg : 클라가 실제로 보낸 채팅 메시지, 
+			std::string chatMsg = packet->Message;
+			std::string formatMsg = "";
+
+			mClientMutex.lock();
+
+			// 배열에 저장된 클라 ID의 이름정보를 얻어옴.
+			std::string& clientName = mClients[client->ID].second;
+
+			// 만약 클라의 이름이 설정안됐다면
+			if (clientName.empty())
+			{
+				chatType = EChatType::CHAT_TYPE_CONNECTED;
+
+				clientName = chatMsg;
+				formatMsg = "[" + chatMsg + "] 님이 입장하셨습니다.";
+
+			}
+
+			// 이미 있다면 메시지 앞에 이름을 붙인다.
+			else
+			{
+				formatMsg = "[" + clientName + "] : " + chatMsg;
+			}
+
+			mClientMutex.unlock();
+
+			// 메세지 매니저에 저장
+			AddChatMsg(formatMsg);
+
+			// 전체 클라에게 브로드 캐스트
+			BroadCastMsg(chatType, formatMsg);
+
+			// 다음 수신을 예약
+			RegisterRecv(client);
+		}
 	}
 }

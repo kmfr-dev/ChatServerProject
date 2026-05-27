@@ -88,7 +88,7 @@ void CChatServerApp::Run()
 		mDirectXManager->StartFrame();
 		mGUIManager->StartFrame();
 
-		mGUIManager->RenderChat(mMessageManager->GetRecvChats());
+		mGUIManager->RenderChat(*this, mMessageManager->GetRecvChats());
 
 		mGUIManager->EndFrame();
 		mDirectXManager->EndFrame();

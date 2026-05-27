@@ -102,7 +102,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>../Library;../Library/imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../Library;../Library/imgui;../Common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -125,6 +125,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\Common\Define.h" />
+    <ClInclude Include="..\Common\DefineHeaders.h" />
+    <ClInclude Include="..\Common\Enum.h" />
     <ClInclude Include="..\Library\imgui\imconfig.h" />
     <ClInclude Include="..\Library\imgui\imgui.h" />
     <ClInclude Include="..\Library\imgui\imgui_impl_dx11.h" />
@@ -135,10 +138,7 @@
     <ClInclude Include="..\Library\imgui\imstb_textedit.h" />
     <ClInclude Include="..\Library\imgui\imstb_truetype.h" />
     <ClInclude Include="ChatServerApp.h" />
-    <ClInclude Include="Define.h" />
-    <ClInclude Include="DefineHeaders.h" />
     <ClInclude Include="DirectXManager.h" />
-    <ClInclude Include="Enum.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GUIManager.h" />
     <ClInclude Include="MessageManager.h" />

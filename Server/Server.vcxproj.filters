@@ -16,6 +16,9 @@
     <Filter Include="Library">
       <UniqueIdentifier>{55854815-b36f-450c-9905-762761897f08}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Common">
+      <UniqueIdentifier>{f04383a6-0558-4084-8178-79bec3f034dd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
@@ -30,16 +33,10 @@
     <ClInclude Include="Server.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="Define.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="DirectXManager.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="GUIManager.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="DefineHeaders.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="ChatServerApp.h">
@@ -75,11 +72,17 @@
     <ClInclude Include="..\Library\imgui\imstb_truetype.h">
       <Filter>Library</Filter>
     </ClInclude>
-    <ClInclude Include="Enum.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="MessageManager.h">
       <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\Define.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\DefineHeaders.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\Enum.h">
+      <Filter>Common</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

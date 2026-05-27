@@ -1,11 +1,12 @@
 #pragma once
 
-#include "DefineHeaders.h"
+#include "../Common/DefineHeaders.h"
 
 class CWindowManager;
 class CDirectXManager;
 class CGUIManager;
 class CMessageManager;
+class CClient;
 
 
 class CChatServerApp
@@ -45,6 +46,7 @@ public:
 	CDirectXManager* GetDirectXManager() const { return mDirectXManager; }
 	CGUIManager* GetGUIManager() const { return mGUIManager; }
 	CMessageManager* GetMessageManager() const { return mMessageManager; }
+	CClient* GetClient() const { return mClient; }
 
 private:
 	static CChatServerApp* mInstance;
@@ -54,5 +56,6 @@ private:
 	CDirectXManager* mDirectXManager = nullptr;
 	CGUIManager* mGUIManager = nullptr;
 	CMessageManager* mMessageManager = nullptr;
+	CClient* mClient = nullptr;
 };
 

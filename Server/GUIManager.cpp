@@ -1,4 +1,6 @@
 #include "GUIManager.h"
+#include "ChatServerApp.h"
+#include "WindowManager.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx11.h"
 
@@ -16,6 +18,16 @@ bool CGUIManager::Init(HWND _hWnd, ID3D11Device* _Device, ID3D11DeviceContext* _
 	ImGuiIO& io = ImGui::GetIO();
 	// 키보드로 UI 조작 가능하게 설정
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+	// 현재 실행 디렉터리 정보를 얻어옴
+	char dir[MAX_PATH];
+	GetCurrentDirectoryA(MAX_PATH, dir);
+
+	// 디렉터리 정보에 폰트 경로 추가
+	std::string curPath = dir;
+	curPath += "\\malgun.ttf";
+
+	io.Fonts->AddFontFromFileTTF(curPath.c_str(), 20.0f, NULL, io.Fonts->GetGlyphRangesKorean());
 
 	ImGui::StyleColorsDark();
 
@@ -45,9 +57,24 @@ void CGUIManager::EndFrame()
 	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 }
 
-void CGUIManager::RenderChat(const std::vector<std::string>& _ChatList)
+void CGUIManager::RenderChat(const CChatServerApp& _App, const std::vector<std::string>& _ChatList)
 {
-	ImGui::Begin("Chat Server");
+	RECT rect;
+	
+	GetClientRect(_App.GetWindowManager()->GethWnd(), &rect);
+	float width = (float)(rect.right - rect.left);
+	float height = (float)(rect.bottom - rect.top);
+
+	ImGui::SetNextWindowPos(ImVec2(5, 5), ImGuiCond_Always);
+	ImGui::SetNextWindowSize(ImVec2(width - 10.0f, height - 90.0f), ImGuiCond_Always);
+
+	ImGuiWindowFlags window_flags = 0;
+	window_flags |= ImGuiWindowFlags_NoResize;
+	window_flags |= ImGuiWindowFlags_NoMove;
+	window_flags |= ImGuiWindowFlags_NoCollapse;
+	window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
+
+	ImGui::Begin("Chat Server", nullptr, window_flags);
 	ImGui::Text("Log");
 
 	for (int i = 0; i < _ChatList.size(); ++i)

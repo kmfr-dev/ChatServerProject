@@ -1,6 +1,7 @@
 #pragma once
 
-#include "DefineHeaders.h"
+#include "../Common/DefineHeaders.h"
+#include "../Common/Define.h"
 
 class CMessageManager
 {

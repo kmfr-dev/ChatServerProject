@@ -1,7 +1,7 @@
 #pragma once
 
-#include "DefineHeaders.h"
-#include "Define.h"
+#include "../Common/DefineHeaders.h"
+#include "../Common/Define.h"
 
 class CDirectXManager
 {

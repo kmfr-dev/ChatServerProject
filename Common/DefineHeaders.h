@@ -13,7 +13,8 @@
 #include <WinSock2.h>
 #include <thread>
 #include <mutex>
+#include "ws2tcpip.h"
 
-//#include "Enum.h"
+#include "Enum.h"
 #include "imgui.h"
 #include "crtdbg.h"

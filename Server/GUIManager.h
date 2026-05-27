@@ -1,6 +1,6 @@
 #pragma once
 
-#include "DefineHeaders.h"
+#include "../Common/DefineHeaders.h"
 
 class CGUIManager
 {
@@ -15,6 +15,6 @@ public:
 
 	void StartFrame();
 	void EndFrame();
-	void RenderChat(const std::vector<std::string>& _ChatList);
+	void RenderChat(const class CChatServerApp& _App, const std::vector<std::string>& _ChatList);
 };
 

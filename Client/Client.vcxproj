@@ -102,7 +102,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>../Library;../Library/imgui</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../Library;../Library/imgui;../Common</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -118,13 +118,18 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>../Library;../Library/imgui;../Common</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>d3d11.lib;dxgi.lib;d3dcompiler.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\Common\Define.h" />
+    <ClInclude Include="..\Common\DefineHeaders.h" />
+    <ClInclude Include="..\Common\Enum.h" />
     <ClInclude Include="..\Library\imgui\imconfig.h" />
     <ClInclude Include="..\Library\imgui\imgui.h" />
     <ClInclude Include="..\Library\imgui\imgui_impl_dx11.h" />
@@ -136,11 +141,10 @@
     <ClInclude Include="..\Library\imgui\imstb_truetype.h" />
     <ClInclude Include="ChatServerApp.h" />
     <ClInclude Include="Client.h" />
-    <ClInclude Include="Define.h" />
-    <ClInclude Include="DefineHeaders.h" />
     <ClInclude Include="DirectXManager.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GUIManager.h" />
+    <ClInclude Include="MessageManager.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="WindowManager.h" />
@@ -159,6 +163,7 @@
     <ClCompile Include="DirectXManager.cpp" />
     <ClCompile Include="GUIManager.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="MessageManager.cpp" />
     <ClCompile Include="WindowManager.cpp" />
   </ItemGroup>
   <ItemGroup>

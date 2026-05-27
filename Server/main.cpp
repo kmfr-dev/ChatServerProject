@@ -1,5 +1,5 @@
 
-#include "DefineHeaders.h"
+#include "../Common/DefineHeaders.h"
 #include "ChatServerApp.h"
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,

@@ -1,0 +1,18 @@
+#pragma once
+
+enum class IO_MODE
+{
+	NONE,
+	READ,
+	WRITE
+};
+
+enum class EChatType
+{
+	CHAT_TYPE_NONE,
+	CHAT_TYPE_NORMAL,
+	CHAT_TYPE_CONNECTED,
+	CHAT_TYPE_WHISPER,
+	CHAT_TYPE_EXIT,
+	CHAT_TYPE_ERROR,
+};

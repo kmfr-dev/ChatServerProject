@@ -1,6 +1,6 @@
 #pragma once
 
-#include "DefineHeaders.h"
+#include "../Common/DefineHeaders.h"
 
 class CWindowManager;
 class CDirectXManager;
@@ -16,6 +16,7 @@ private:
 	~CChatServerApp();
 
 public:
+	// Singleton
 	static CChatServerApp* GetInstance()
 	{
 		if (nullptr == mInstance)
