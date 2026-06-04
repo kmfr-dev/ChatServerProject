@@ -7,6 +7,7 @@
 #define PORT 9190
 #define BUF_SIZE 4096
 #define PACKET_SIZE 1024
+#define MAX_CHATSIZE 20
 
 struct FBufferInfo
 {

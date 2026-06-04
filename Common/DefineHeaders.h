@@ -13,6 +13,7 @@
 #include <WinSock2.h>
 #include <thread>
 #include <queue>
+#include <deque>
 #include <mutex>
 #include "ws2tcpip.h"
 

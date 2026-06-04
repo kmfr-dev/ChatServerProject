@@ -12,9 +12,7 @@ public:
 public:
 	bool Init();
 	void ConnectToServer();
-	void RegisterRecv();
 	void End();
-	void SendChatMessage(EChatType _Type, const std::string& _Message);
 
 public:
 	void SetName(const char* _NewName) { mName = _NewName; }
@@ -22,6 +20,7 @@ public:
 
 public:
 	const SOCKET& GetSocket() const { return mConnectedSocket; }
+	std::mutex& GetMutex() { return mMutex; }
 	FBufferInfo& GetRecvBuffer() { return mRecvBuffer; }
 
 	const std::string& GetName() const { return mName; }

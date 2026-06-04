@@ -47,7 +47,8 @@ bool CWindowManager::Init(HINSTANCE _hInstance)
     mMainScale = ImGui_ImplWin32_GetDpiScaleForMonitor
     (::MonitorFromWindow(mhWnd, MONITOR_DEFAULTTONEAREST));
 
-    mhWnd = ::CreateWindowW(mWC.lpszClassName, L"Chat Server App", WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, 100, 100, (int)300 * mMainScale, (int)400 * mMainScale, nullptr, nullptr, mWC.hInstance, nullptr);
+    mhWnd = ::CreateWindowW(mWC.lpszClassName, L"Chat Server App", WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, 
+        100, 100, (int)300 * mMainScale, (int)400 * mMainScale, nullptr, nullptr, mWC.hInstance, nullptr);
 
     if (nullptr == mhWnd)
         return false;

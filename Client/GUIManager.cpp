@@ -59,7 +59,7 @@ void CGUIManager::EndFrame()
 	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 }
 
-void CGUIManager::RenderChat(const CChatServerApp& _App, const std::vector<FChatData>& _ChatList)
+void CGUIManager::RenderChat(const CChatServerApp& _App, const std::deque<FChatData>& _ChatList)
 {
 	CClient* client = _App.GetClient();
 	if (nullptr == client)
@@ -128,27 +128,28 @@ void CGUIManager::RenderChat(const CChatServerApp& _App, const std::vector<FChat
 
 		CChatServerApp::GetInstance()->GetMessageManager()->GetMutex().lock();
 
-		const std::vector<FChatData>& Chats = CChatServerApp::GetInstance()->GetMessageManager()->GetRecvChats();
+		const std::deque<FChatData>& Chats = CChatServerApp::GetInstance()->GetMessageManager()->GetRecvChats();
 
-		for (int i = 0; i < Chats.size(); ++i)
+		for (const FChatData& Chat : Chats)
 		{
 			ImVec4 Color = {};
 
-			switch (Chats[i].ChatType)
+			switch (Chat.ChatType)
 			{
 			case EChatType::CHAT_TYPE_ERROR:
 			case EChatType::CHAT_TYPE_EXIT:
 				Color = { 1.0f, 0.0f, 0.0f, 1.0f };
 				break;
-			case EChatType::CHAT_TYPE_NORMAL:
-				Color = { 1.0f, 1.0f, 1.0f, 1.0f };
-				break;
 			case EChatType::CHAT_TYPE_CONNECTED:
 				Color = { 0.0f, 1.0f, 0.0f, 1.0f };
 				break;
+			case EChatType::CHAT_TYPE_NORMAL:
+			default:
+				Color = { 1.0f, 1.0f, 1.0f, 1.0f };
+				break;
 			}
 
-			ImGui::TextColored(Color, Chats[i].Message.c_str());
+			ImGui::TextColored(Color, Chat.Message.c_str());
 		}
 
 		CChatServerApp::GetInstance()->GetMessageManager()->GetMutex().unlock();

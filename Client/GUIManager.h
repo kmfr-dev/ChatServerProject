@@ -18,6 +18,6 @@ public:
 
 	void StartFrame();
 	void EndFrame();
-	void RenderChat(const CChatServerApp& _App, const std::vector<FChatData>& _ChatList);
+	void RenderChat(const CChatServerApp& _App, const std::deque<FChatData>& _ChatList);
 };
 
