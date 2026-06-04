@@ -22,71 +22,18 @@ void CMessageManager::InitRecvThread()
 
 void CMessageManager::RecvChat()
 {
-	CClient* client = CChatServerApp::GetInstance()->GetClient();
-	if (nullptr == client)
-		return;
+	// 송/수신 쓰레드가 처음에 수신등록.
+	// Overlapped I/O 콜백 방식은 비동기 함수를 호출한 
+	// 쓰레드가 대기 상태로 들어가야 콜백이 실행됨.
+	CChatServerApp::GetInstance()->GetClient()->RegisterRecv();
 
-	FChatPacket packet;
-
-	//SOCKET sock = client->GetSocket();
-	//// 클라의 수신버퍼
-	//FBufferInfo& recvBuffer = client->GetRecvBuffer();
-
-	//WSAEVENT eventArr[1] = { recvBuffer.Overlapped.hEvent };
 
 	while (true)
 	{
-		int result = recv(client->GetSocket(), (char*)&packet, sizeof(packet), 0);
-		if (result > 0)
-		{
-			AddChat(packet.Type, packet.Message, false);
-		}
-
-
-		//DWORD result = WSAWaitForMultipleEvents(1, eventArr, FALSE, WSA_INFINITE, FALSE);
-
-		//if (WSA_WAIT_FAILED == result)
-		//	break;
-		//	
-		//WSAResetEvent(eventArr[0]);
-
-		//DWORD bytes = 0;
-		//DWORD flag = 0;
-
-		//if (WSAGetOverlappedResult(sock, &recvBuffer.Overlapped, &bytes, FALSE, &flag))
-		//{
-		//	// 연결 종료 신호
-		//	if (0 == bytes)
-		//	{
-		//		AddChat(EChatType::CHAT_TYPE_ERROR, "서버 연결 종료..", false);
-		//		break;
-		//	}
-
-		//	IO_MODE IOMode = recvBuffer.rwMode;
-		//	FChatPacket* recvPacket = (FChatPacket*)recvBuffer.Buffer;
-
-		//	// 채팅 패킷 처리
-		//	AddChat(recvPacket->Type, recvPacket->Message, false);
-		//	
-		//	if (IO_MODE::READ == IOMode)
-		//	{
-		//		client->RegisterRecv();
-		//	}
-		//	else if (IO_MODE::WRITE == IOMode)
-		//	{
-		//		FBufferInfo* BufInfo = (FBufferInfo*)&recvBuffer.Overlapped;
-		//		delete BufInfo;
-		//		BufInfo = nullptr;
-		//	}			
-		//}
-
-		//else
-		//{
-		//	// 에러 처리
-		//	int errorCode = WSAGetLastError();
-		//	AddChat(EChatType::CHAT_TYPE_ERROR, "Recv Error : " + std::to_string(errorCode), false);
-		//	break;
-		//}
+		// 콜백을 호출하려면
+		// 이 쓰레드를 Alertable Wait 상태로 진입해야 함.
+		// 데이터 송수신 완료가 될때 까지 쓰레드는 대기
+		SleepEx(INFINITE, TRUE);
 	}
 }
 
@@ -124,4 +71,37 @@ void CMessageManager::EraseOldedChat()
 	}
 
 	mChatMutex.unlock();
+}
+
+void CALLBACK CMessageManager::RecvCallBack(DWORD _Error, DWORD _Bytes, LPWSAOVERLAPPED _Overlapped, DWORD _Flags)
+{
+	// 버퍼 정보 구조체로 변환
+	FBufferInfo* Info = (FBufferInfo*)_Overlapped;
+	CClient* client = CChatServerApp::GetInstance()->GetClient();
+
+	// 에러 및 서버 종료라면
+	if (nullptr == client || _Error || _Bytes == 0)
+	{
+		CChatServerApp::GetInstance()->GetMessageManager()->
+			AddChat(EChatType::CHAT_TYPE_ERROR, "서버와 연결이 끊겼습니다..", false);
+		return;
+	}
+
+	// 수신된 패킷을 처리
+	FChatPacket* packet = (FChatPacket*)Info->Buffer;
+	CChatServerApp::GetInstance()->GetMessageManager()->AddChat(packet->Type, packet->Message, false);
+
+	// 클라이언트는 다음 데이터를 받기 위해 수신 등록
+	client->RegisterRecv();
+}
+
+void CALLBACK CMessageManager::SendCallBack(DWORD _Error, DWORD _Bytes, LPWSAOVERLAPPED _Overlapped, DWORD _Flags)
+{
+	// 송신 콜백이면, 이전에 동적할당된 버퍼 정보이므로
+	// 메모리만 해제한다.
+	FBufferInfo* Info = (FBufferInfo*)_Overlapped;
+
+	FChatPacket* packet = (FChatPacket*)Info->Buffer;
+
+	delete Info;
 }

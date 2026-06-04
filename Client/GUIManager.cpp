@@ -126,6 +126,8 @@ void CGUIManager::RenderChat(const CChatServerApp& _App, const std::vector<FChat
 			CChatServerApp::GetInstance()->GetMessageManager()->AddChat(EChatType::CHAT_TYPE_NORMAL, ChatText, true);
 		}
 
+		CChatServerApp::GetInstance()->GetMessageManager()->GetMutex().lock();
+
 		const std::vector<FChatData>& Chats = CChatServerApp::GetInstance()->GetMessageManager()->GetRecvChats();
 
 		for (int i = 0; i < Chats.size(); ++i)
@@ -148,6 +150,8 @@ void CGUIManager::RenderChat(const CChatServerApp& _App, const std::vector<FChat
 
 			ImGui::TextColored(Color, Chats[i].Message.c_str());
 		}
+
+		CChatServerApp::GetInstance()->GetMessageManager()->GetMutex().unlock();
 	}
 
 	ImGui::End();

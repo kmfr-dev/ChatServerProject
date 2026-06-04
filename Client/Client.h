@@ -22,7 +22,7 @@ public:
 
 public:
 	const SOCKET& GetSocket() const { return mConnectedSocket; }
-	//FBufferInfo& GetRecvBuffer() { return mRecvBuffer; }
+	FBufferInfo& GetRecvBuffer() { return mRecvBuffer; }
 
 	const std::string& GetName() const { return mName; }
 	const char* GetName_Cstr() const { return mName.c_str(); }
@@ -35,7 +35,6 @@ private:
 	std::string mServerIP = "";
 
 private:
-	HANDLE		mhEvent;
-	//FBufferInfo mRecvBuffer;
+	FBufferInfo mRecvBuffer;
 	std::mutex	mMutex;
 };

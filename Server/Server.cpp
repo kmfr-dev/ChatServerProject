@@ -119,7 +119,7 @@ void CServer::RegisterRecv(CClient* _Client)
 	if (nullptr == _Client)
 		return;
 
-	ZeroMemory(&_Client->BufferInfo.Overlapped, sizeof(OVERLAPPED));
+	ZeroMemory(&_Client->BufferInfo.Overlapped, sizeof(WSAOVERLAPPED));
 
 	_Client->BufferInfo.rwMode = IO_MODE::READ;
 	_Client->BufferInfo.WSABuf.buf = _Client->BufferInfo.Buffer;
@@ -321,9 +321,9 @@ void CServer::ProcessIO()
 	{
 		DWORD		byetsRansferred = 0;
 		CClient*	client = nullptr;
-		OVERLAPPED* overlapped = nullptr;
+		WSAOVERLAPPED* overlapped = nullptr;
 
-		// ** IOCP 완료큐에서 이벤트를 꺼낸다. 올 때까지 블로킹.
+		// IOCP 완료큐에서 이벤트를 꺼낸다. 올 때까지 블로킹.
 		BOOL result = GetQueuedCompletionStatus(mhIOCP, &byetsRansferred, (PULONG_PTR)&client, &overlapped, INFINITE);
 
 		// 실패했다면
@@ -361,7 +361,7 @@ void CServer::ProcessIO()
 		if (IOData->rwMode == IO_MODE::READ)
 		{
 			// 클라이언트가 보낸 패킷정보를 얻어옴
-			FChatPacket* packet = (FChatPacket*)client->BufferInfo.Buffer;
+			FChatPacket* packet = (FChatPacket*)IOData->Buffer;
 
 			EChatType chatType = packet->Type;
 

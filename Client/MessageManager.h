@@ -20,10 +20,16 @@ public:
 	void EraseOldedChat();
 
 public:
+	static void RecvCallBack(DWORD _Error, DWORD _Bytes, LPWSAOVERLAPPED _Overlapped, DWORD _Flags);
+	static void SendCallBack(DWORD _Error, DWORD _Bytes, LPWSAOVERLAPPED _Overlapped, DWORD _Flags);
+
+public:
+	std::mutex& GetMutex() { return mChatMutex; }
 	const std::vector<FChatData>& GetRecvChats() const { return mChats; }
 	void ClearChatList() { mChats.clear(); }
 
 private:
+	// 실제 채팅 데이터
 	std::vector<FChatData> mChats;
 
 private:

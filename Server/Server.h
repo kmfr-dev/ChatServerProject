@@ -4,15 +4,6 @@
 #include "../Common/Define.h"
 #include "../Common/DefineHeaders.h"
 
-struct FBufferInfo
-{
-	// Buffer Info
-	OVERLAPPED Overlapped = {};
-	WSABUF WSABuf = {};
-	char Buffer[BUF_SIZE] = {};
-	IO_MODE rwMode = IO_MODE::NONE;
-};
-
 struct CClient
 {
 	// 클라이언트의 ID

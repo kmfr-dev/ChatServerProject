@@ -1,21 +1,21 @@
 #pragma once
 
 #include "Enum.h"
-#include <string>
+#include "DefineHeaders.h"
 
 #define MAX_LOADSTRING 100
 #define PORT 9190
 #define BUF_SIZE 4096
 #define PACKET_SIZE 1024
 
-//struct FBufferInfo
-//{
-//	// Buffer Info
-//	OVERLAPPED Overlapped = {};
-//	WSABUF WSABuf = {};
-//	char Buffer[BUF_SIZE] = {};
-//	IO_MODE rwMode = IO_MODE::NONE;
-//};
+struct FBufferInfo
+{
+	// Buffer Info
+	WSAOVERLAPPED Overlapped = {};
+	WSABUF WSABuf = {};
+	char Buffer[BUF_SIZE] = {};
+	IO_MODE rwMode = IO_MODE::NONE;
+};
 
 struct FChatPacket
 {
