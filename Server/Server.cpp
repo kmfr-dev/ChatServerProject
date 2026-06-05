@@ -75,7 +75,10 @@ int CServer::Start()
 
 void CServer::End()
 {
+	mClientMutex.lock();
 	mRunning = false;
+	mClientMutex.unlock();
+	
 	closesocket(mListeningSocket);
 
 	// 모든 클라이언트 소켓 shutdown 
@@ -326,12 +329,14 @@ void CServer::ProcessIO()
 		// IOCP 완료큐에서 이벤트를 꺼낸다. 올 때까지 블로킹.
 		BOOL result = GetQueuedCompletionStatus(mhIOCP, &byetsRansferred, (PULONG_PTR)&client, &overlapped, INFINITE);
 
+		// 종료 조건일 경우
+		if (result == TRUE && client == nullptr && overlapped == nullptr)
+			break;
+
+
 		// 실패했다면
 		if (FALSE == result)
 		{
-			if (nullptr == overlapped)
-				break;
-
 			if (nullptr != client)
 				ExitClient(client);
 
@@ -351,9 +356,13 @@ void CServer::ProcessIO()
 
 		// 만약 쓰기모드면, Server -> Client로 전송한 것이므로 
 		// 동적할당한 송신데이터를 해제.
- 		if (IOData->rwMode == IO_MODE::WRITE)
+		if (IOData->rwMode == IO_MODE::WRITE)
 		{
 			delete IOData;
+
+			if (!mRunning)
+				break;
+
 			continue;
 		}
 

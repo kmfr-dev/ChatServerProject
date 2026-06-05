@@ -9,14 +9,18 @@ bool CMessageManager::Init()
 
 void CMessageManager::End()
 {
-	if (mThread.joinable())
+	mRunning = false;
+
+	if(mThread.joinable())
 	{
+		QueueUserAPC(nullptr, (HANDLE)mThread.native_handle(), 0);
 		mThread.join();
 	}
 }
 
 void CMessageManager::InitRecvThread()
 {
+	mRunning = true;
 	mThread = std::thread(&CMessageManager::RecvChat, this);
 }
 
@@ -27,7 +31,7 @@ void CMessageManager::RecvChat()
 	// 쓰레드가 대기 상태로 들어가야 콜백이 실행됨.
 	RegisterRecv();
 
-	while (true)
+	while (mRunning)
 	{
 		// 콜백을 호출하려면
 		// 이 쓰레드를 Alertable Wait 상태로 진입해야 함.

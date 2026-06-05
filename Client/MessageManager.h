@@ -46,6 +46,7 @@ private:
 	std::queue<FBufferInfo*> mSendQueue;
 
 private:
+	std::atomic<bool> mRunning = false;
 	std::thread mThread;
 	std::mutex mChatMutex;
 };
