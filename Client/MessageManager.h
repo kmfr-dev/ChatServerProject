@@ -3,6 +3,8 @@
 #include "../Common/DefineHeaders.h"
 #include "Define.h"
 
+class CClient;
+
 class CMessageManager
 {
 public:
@@ -29,6 +31,7 @@ private:
 	void StartChatSend(EChatType _Type, const std::string& _Message);
 
 private:
+	static void EmptyFunc(ULONG_PTR _Ptr);
 	static void RecvCallBack(DWORD _Error, DWORD _Bytes, LPWSAOVERLAPPED _Overlapped, DWORD _Flags);	
 	static void RequestAsyncSend(ULONG_PTR _Ptr);
 	static void SuccessAsyncSend(DWORD _Error, DWORD _Bytes, LPWSAOVERLAPPED _Overlapped, DWORD _Flags);
@@ -49,4 +52,23 @@ private:
 	std::atomic<bool> mRunning = false;
 	std::thread mThread;
 	std::mutex mChatMutex;
+
+	// ============== SERVER LOAD TEST ==============
+private:
+	int mThreadCount = 0;
+	HANDLE mhIOCP = {};
+	std::vector<std::thread> mWorkerThreads;
+	
+	float mTimes = 0.0f;
+	std::thread mTickThread;
+
+private:
+	void SERVER_TEST_PROCESSIO();
+	void SERVER_TEST_SendToServer();
+
+public:
+	void SERVER_TEST_InitIOCP();
+	void SERVER_TEST_RegisterRecv(CClient* _Client);
+	void SERVER_TEST_StartChatSend(CClient* _Client, const std::string& _Message);
+	// ==============================================
 };

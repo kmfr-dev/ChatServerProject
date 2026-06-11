@@ -19,7 +19,7 @@ public:
 	void SetSerrverIP(const char* _NewServerIP) { mServerIP = _NewServerIP; }
 
 public:
-	const SOCKET& GetSocket() const { return mConnectedSocket; }
+	SOCKET& GetSocket() { return mConnectedSocket; }
 	std::mutex& GetMutex() { return mMutex; }
 	FBufferInfo& GetRecvBuffer() { return mRecvBuffer; }
 
@@ -36,4 +36,11 @@ private:
 private:
 	FBufferInfo mRecvBuffer;
 	std::mutex	mMutex;
+
+	// ============== SERVER LOAD TEST ==============
+private:
+	std::queue<FBufferInfo*> mSendQueue;
+public:
+	std::queue<FBufferInfo*>& GetSendQueue() { return mSendQueue; }
+	// ==============================================
 };

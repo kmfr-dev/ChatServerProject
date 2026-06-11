@@ -47,6 +47,20 @@ bool CChatServerApp::Init(HINSTANCE _hInstance)
 
 	mWindowManager->ShowWindow();
 
+	//디버그일 때는 더미 클라이언트 생성
+#ifdef _DEBUG
+
+	mTestClients.reserve(MAX_CLIENT);
+	for (int i = 0; i < MAX_CLIENT; ++i)
+	{
+		CClient* DummyClient = new CClient;
+		DummyClient->SetName("DummyClient" + i);
+		DummyClient->SetSerrverIP(SERVER_IP);
+
+		mTestClients.emplace_back(DummyClient);
+	}
+
+#else
 	mClient = new CClient;
 	if (!mClient->Init())
 	{
@@ -55,6 +69,7 @@ bool CChatServerApp::Init(HINSTANCE _hInstance)
 
 		return false;
 	}
+#endif
 
 	mMessageManager = new CMessageManager;
 	if (!mMessageManager->Init())
@@ -64,7 +79,7 @@ bool CChatServerApp::Init(HINSTANCE _hInstance)
 
 		return false;
 	}
-
+	
 	mGUIManager = new CGUIManager;
 	if (!mGUIManager->Init(mWindowManager->GethWnd(), mDirectXManager->GetDevice(),
 		mDirectXManager->GetContext()))
@@ -91,8 +106,6 @@ void CChatServerApp::Run()
 
 		ResizeWindow();
 
-		float DeltaSeconds = CTimerManager::GetInstance()->UpdateTick();
-
 		mDirectXManager->StartFrame();
 		mGUIManager->StartFrame();
 
@@ -105,6 +118,9 @@ void CChatServerApp::Run()
 
 void CChatServerApp::Shutdown()
 {
+#ifdef _DEBUG
+	SERVER_TEST_ShutdownClients();
+#else
 	if (mClient)
 	{
 		mClient->End();
@@ -112,6 +128,7 @@ void CChatServerApp::Shutdown()
 		delete mClient;
 		mClient = nullptr;
 	}
+#endif
 
 	if (mMessageManager)
 	{
@@ -155,4 +172,22 @@ void CChatServerApp::ResizeWindow()
 		mWindowManager->GetResizeHeight());
 
 	mWindowManager->ClearResizeResoultion();
+}
+
+// SERVER LOAD TEST
+
+void CChatServerApp::SERVER_TEST_ShutdownClients()
+{
+	for (int i = 0; i < mTestClients.size(); ++i)
+	{
+		if (nullptr == mTestClients[i])
+			continue;
+
+		mTestClients[i]->End();
+
+		delete mTestClients[i];
+		mTestClients[i] = nullptr;
+	}
+
+	WSACleanup();
 }

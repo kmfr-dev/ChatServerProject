@@ -7,8 +7,12 @@
 #define PORT 9190
 #define BUF_SIZE 4096
 #define PACKET_SIZE 1024
-#define MAX_CHATSIZE 20
+#define CLIENTMAX_CHATSIZE 20
+#define MAX_CLIENT 300
 #define SERVER_MAXLOGSIZE 5000
+#define SERVER_IP "127.0.0.1"
+#define SERVERTEST_CLIENT_SENDINTERVAL 1.0f
+
 
 struct FBufferInfo
 {

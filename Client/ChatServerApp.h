@@ -57,5 +57,20 @@ private:
 	CGUIManager* mGUIManager = nullptr;
 	CMessageManager* mMessageManager = nullptr;
 	CClient* mClient = nullptr;
+
+
+	// ============== SERVER LOAD TEST ==============
+private:
+	std::vector<CClient*> mTestClients;
+	std::mutex	mMutex;
+
+public:
+	const std::vector<CClient*>& GetTestClients() const { return mTestClients; }
+	std::mutex& GetMutex() { return mMutex; }
+
+private:
+	void SERVER_TEST_ShutdownClients();
+
+	// ==============================================
 };
 

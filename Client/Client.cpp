@@ -4,12 +4,6 @@
 
 bool CClient::Init()
 {
-	// 디버그 일때만 이름, IP 강제 지정
-#ifdef _DEBUG
-	mName = "Dummy Client";
-	mServerIP = "127.0.0.1";
-#endif 
-
 	return true;
 }
 
@@ -50,12 +44,7 @@ void CClient::ConnectToServer()
 		return;
 	}
 
-	// 수신 전용 이벤트 객체 생성	
-	mRecvBuffer.Overlapped.hEvent = WSACreateEvent();
 	mRecvBuffer.rwMode = IO_MODE::READ;
-
-	// 메시지 매니저 쓰레드 초기화
-	CChatServerApp::GetInstance()->GetMessageManager()->InitRecvThread();
 
 	// 서버에 자신의 이름 메세지 보내기
 	CChatServerApp::GetInstance()->GetMessageManager()->
@@ -64,14 +53,9 @@ void CClient::ConnectToServer()
 
 void CClient::End()
 {
-	// 릴리즈일때는 클라 소켓 하나만 닫기
-#ifndef _DEBUG
 	shutdown(mConnectedSocket, SD_BOTH);
 	closesocket(mConnectedSocket);
-#else
-	// TODO RELEASE DUMMYCLIENT
-
-#endif
-
+#ifndef _DEBUG
 	WSACleanup();
+#endif
 }
