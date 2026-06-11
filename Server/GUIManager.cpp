@@ -57,7 +57,7 @@ void CGUIManager::EndFrame()
 	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 }
 
-void CGUIManager::RenderChat(const CChatServerApp& _App, const std::vector<std::string>& _ChatList)
+void CGUIManager::RenderChat(const CChatServerApp& _App, const std::deque<std::string>& _ChatList)
 {
 	RECT rect;
 	
@@ -75,12 +75,18 @@ void CGUIManager::RenderChat(const CChatServerApp& _App, const std::vector<std::
 	window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
 
 	ImGui::Begin("Chat Server", nullptr, window_flags);
+	
+	// 릴리즈일때만 채팅로그 출력
+#ifndef _DEBUG
 	ImGui::Text("Log");
 
 	for (int i = 0; i < _ChatList.size(); ++i)
 	{
 		ImGui::Text(_ChatList[i].c_str());
 	}
+#else
+
+#endif
 
 	ImGui::End();
 }

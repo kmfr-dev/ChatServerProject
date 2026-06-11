@@ -130,6 +130,7 @@
     <ClInclude Include="..\Common\Define.h" />
     <ClInclude Include="..\Common\DefineHeaders.h" />
     <ClInclude Include="..\Common\Enum.h" />
+    <ClInclude Include="..\Common\TimerManager.h" />
     <ClInclude Include="..\Library\imgui\imconfig.h" />
     <ClInclude Include="..\Library\imgui\imgui.h" />
     <ClInclude Include="..\Library\imgui\imgui_impl_dx11.h" />
@@ -150,6 +151,7 @@
     <ClInclude Include="WindowManager.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Common\TimerManager.cpp" />
     <ClCompile Include="..\Library\imgui\imgui.cpp" />
     <ClCompile Include="..\Library\imgui\imgui_demo.cpp" />
     <ClCompile Include="..\Library\imgui\imgui_draw.cpp" />

@@ -4,6 +4,7 @@
 #include "GUIManager.h"
 #include "MessageManager.h"
 #include "Client.h"
+#include "TimerManager.h"
 
 CChatServerApp* CChatServerApp::mInstance = nullptr;
 
@@ -13,12 +14,17 @@ CChatServerApp::CChatServerApp()
 
 CChatServerApp::~CChatServerApp()
 {
-	// TODO Destructor
 	Shutdown();
 }
 
 bool CChatServerApp::Init(HINSTANCE _hInstance)
 {
+	if (!CTimerManager::GetInstance()->Init())
+	{
+		CTimerManager::DestroyInstnace();
+		return false;
+	}
+
 	mWindowManager = new CWindowManager;
 	if (!mWindowManager->Init(_hInstance))
 	{
@@ -85,6 +91,8 @@ void CChatServerApp::Run()
 
 		ResizeWindow();
 
+		float DeltaSeconds = CTimerManager::GetInstance()->UpdateTick();
+
 		mDirectXManager->StartFrame();
 		mGUIManager->StartFrame();
 
@@ -137,6 +145,8 @@ void CChatServerApp::Shutdown()
 		delete mWindowManager;
 		mWindowManager = nullptr;
 	}
+
+	CTimerManager::DestroyInstnace();
 }
 
 void CChatServerApp::ResizeWindow()

@@ -4,6 +4,11 @@
 
 bool CClient::Init()
 {
+	// 디버그 일때만 이름, IP 강제 지정
+#ifdef _DEBUG
+	mName = "Dummy Client";
+	mServerIP = "127.0.0.1";
+#endif 
 
 	return true;
 }
@@ -59,7 +64,14 @@ void CClient::ConnectToServer()
 
 void CClient::End()
 {
+	// 릴리즈일때는 클라 소켓 하나만 닫기
+#ifndef _DEBUG
 	shutdown(mConnectedSocket, SD_BOTH);
 	closesocket(mConnectedSocket);
+#else
+	// TODO RELEASE DUMMYCLIENT
+
+#endif
+
 	WSACleanup();
 }

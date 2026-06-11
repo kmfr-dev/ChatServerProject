@@ -84,6 +84,9 @@
     <ClInclude Include="..\Common\Enum.h">
       <Filter>Common</Filter>
     </ClInclude>
+    <ClInclude Include="..\Common\TimerManager.h">
+      <Filter>Common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Server.cpp">
@@ -130,6 +133,9 @@
     </ClCompile>
     <ClCompile Include="MessageManager.cpp">
       <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\TimerManager.cpp">
+      <Filter>Common</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

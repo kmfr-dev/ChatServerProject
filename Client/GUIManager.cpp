@@ -120,12 +120,12 @@ void CGUIManager::RenderChat(const CChatServerApp& _App, const std::deque<FChatD
 		// 자신 이름 녹색으로 변경
 		ImGui::TextColored({ 0.0f, 1.0f, 0.0f, 1.0f }, NameText.c_str());
 
-		// 채팅을 보냄
+		// 채팅을 보냄 : 릴리즈일때만
+#ifndef _DEBUG 
 		if (ImGui::InputText(" ", ChatText, IM_ARRAYSIZE(ChatText), ImGuiInputTextFlags_EnterReturnsTrue) == true)
 		{
 			CChatServerApp::GetInstance()->GetMessageManager()->AddChat(EChatType::CHAT_TYPE_NORMAL, ChatText, true);
 		}
-
 		CChatServerApp::GetInstance()->GetMessageManager()->GetMutex().lock();
 
 		const std::deque<FChatData>& Chats = CChatServerApp::GetInstance()->GetMessageManager()->GetRecvChats();
@@ -153,6 +153,12 @@ void CGUIManager::RenderChat(const CChatServerApp& _App, const std::deque<FChatD
 		}
 
 		CChatServerApp::GetInstance()->GetMessageManager()->GetMutex().unlock();
+#else
+		// TODO : 디버그일때는 MS 출력
+
+#endif
+
+
 	}
 
 	ImGui::End();

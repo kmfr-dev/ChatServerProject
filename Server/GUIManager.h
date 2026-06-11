@@ -15,6 +15,5 @@ public:
 
 	void StartFrame();
 	void EndFrame();
-	void RenderChat(const class CChatServerApp& _App, const std::vector<std::string>& _ChatList);
+	void RenderChat(const class CChatServerApp& _App, const std::deque<std::string>& _ChatList);
 };
-

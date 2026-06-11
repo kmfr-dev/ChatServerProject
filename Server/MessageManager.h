@@ -11,11 +11,11 @@ public:
 
 public:
 	bool Init();
-	const std::vector<std::string>& GetRecvChats() const { return mRecvChats; }	
+	const std::deque<std::string>& GetRecvChats() const { return mRecvChats; }
 	void ClearChatList() { mRecvChats.clear(); }
-	void AddRecvChat(const std::string& _Message) { mRecvChats.push_back(_Message); };
+	void AddRecvChat(const std::string& _Message);
 
 private:
-	std::vector<std::string> mRecvChats;
+	std::deque<std::string> mRecvChats;
 };
 
