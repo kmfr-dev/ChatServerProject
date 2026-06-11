@@ -17,6 +17,7 @@ public:
 public:
 	void SetName(const char* _NewName) { mName = _NewName; }
 	void SetSerrverIP(const char* _NewServerIP) { mServerIP = _NewServerIP; }
+	void SetID(int _NewID) { mID = _NewID; }
 
 public:
 	SOCKET& GetSocket() { return mConnectedSocket; }
@@ -27,11 +28,13 @@ public:
 	const char* GetName_Cstr() const { return mName.c_str(); }
 	const std::string& GetServerIP() const { return mServerIP; }
 	const char* GetServerIP_Cstr() const { return mServerIP.c_str(); }
+	int GetID() const { return mID; }
 
 private:
 	SOCKET mConnectedSocket = {};
 	std::string mName = "";
 	std::string mServerIP = "";
+	int mID = -1;
 
 private:
 	FBufferInfo mRecvBuffer;

@@ -154,8 +154,14 @@ void CGUIManager::RenderChat(const CChatServerApp& _App, const std::deque<FChatD
 
 		CChatServerApp::GetInstance()->GetMessageManager()->GetMutex().unlock();
 #else
-		// TODO : 디버그일때는 MS 출력
+		CMessageManager* MsgManager = CChatServerApp::GetInstance()->GetMessageManager();
+		
+		std::atomic<long long> RTT = MsgManager->GetRTT();
+		std::atomic<long long> SCount = MsgManager->GetCount();
 
+		double AverageRtt = (double)RTT.load() / SCount.load() / 1000.0;
+
+		ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), std::string(std::to_string(AverageRtt) + "ms").c_str());
 #endif
 
 

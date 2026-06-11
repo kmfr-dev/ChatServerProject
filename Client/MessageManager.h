@@ -55,12 +55,19 @@ private:
 
 	// ============== SERVER LOAD TEST ==============
 private:
+	std::atomic<long long> mTotalRTT = 0;
+	std::atomic<long long> mCount = 0;
+
 	int mThreadCount = 0;
 	HANDLE mhIOCP = {};
 	std::vector<std::thread> mWorkerThreads;
 	
 	float mTimes = 0.0f;
 	std::thread mTickThread;
+
+public:
+	std::atomic<long long> GetRTT() const { return mTotalRTT.load(); }
+	std::atomic<long long> GetCount() const { return mCount.load(); }
 
 private:
 	void SERVER_TEST_PROCESSIO();

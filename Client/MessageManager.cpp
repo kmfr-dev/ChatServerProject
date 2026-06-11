@@ -204,7 +204,7 @@ void CMessageManager::SERVER_TEST_PROCESSIO()
 		if (result == TRUE && client == nullptr && overlapped == nullptr)
 			break;
 
-		if (FALSE == result)
+		if (FALSE == result || client == nullptr || overlapped == nullptr)
 			continue;
 
 		FBufferInfo* IOData = (FBufferInfo*)overlapped;
@@ -221,6 +221,16 @@ void CMessageManager::SERVER_TEST_PROCESSIO()
 		// 읽기 모드면, Client -> Server로 전송한 정보
 		if (IOData->rwMode == IO_MODE::READ)
 		{
+			FChatPacket* Packet = (FChatPacket*)IOData->Buffer;
+			if (Packet->SenderID == client->GetID())
+			{
+				long long CurTime = CTimerManager::GetInstance()->GetCurrentMS();
+				long long RTT = CurTime - Packet->TimeStamp;
+
+				mTotalRTT.fetch_add(RTT);
+				mCount.fetch_add(1);
+			}
+
 			// 수신 예약
 			SERVER_TEST_RegisterRecv(client);
 		}
@@ -230,6 +240,8 @@ void CMessageManager::SERVER_TEST_PROCESSIO()
 
 void CMessageManager::SERVER_TEST_SendToServer()
 {
+	const std::vector<CClient*>& Clients = CChatServerApp::GetInstance()->GetTestClients();
+
 	while (mRunning)
 	{
 		float DeltaSeconds = CTimerManager::GetInstance()->UpdateTick();
@@ -237,8 +249,6 @@ void CMessageManager::SERVER_TEST_SendToServer()
 
 		if (mTimes >= SERVERTEST_CLIENT_SENDINTERVAL)
 		{
-			std::lock_guard<std::mutex> lock(CChatServerApp::GetInstance()->GetMutex());
-			const std::vector<CClient*>& Clients = CChatServerApp::GetInstance()->GetTestClients();
 
 			for (int i = 0; i < Clients.size(); ++i)
 			{
@@ -365,13 +375,16 @@ void CMessageManager::SERVER_TEST_StartChatSend(CClient* _Client, const std::str
 
 	// 송신 버퍼 동적 할당, 완료되기 전에 스택에서 사라지기 때문에
 	FBufferInfo* sendData = new FBufferInfo;
-	sendData->WSABuf.buf = sendData->Buffer;
-	sendData->WSABuf.len = PACKET_SIZE;
 	sendData->rwMode = IO_MODE::WRITE;
+	sendData->WSABuf.buf = sendData->Buffer;
+	sendData->WSABuf.len = sizeof(FChatPacket);
 
 	FChatPacket* packet = (FChatPacket*)sendData->Buffer;
 	packet->Type = EChatType::CHAT_TYPE_NORMAL;
-	strncpy_s(packet->Message, _Message.c_str(), PACKET_SIZE);
+	packet->TimeStamp = CTimerManager::GetInstance()->GetCurrentMS();
+	packet->SenderID = _Client->GetID();
+
+	strncpy_s(packet->Message, _Message.c_str(), _TRUNCATE);
 
 	std::lock_guard<std::mutex> lock(_Client->GetMutex());
 	_Client->GetSendQueue().push(sendData);
@@ -382,8 +395,9 @@ void CMessageManager::SERVER_TEST_StartChatSend(CClient* _Client, const std::str
 	if (SOCKET_ERROR == WSASend(_Client->GetSocket(), &sendData->WSABuf, 1, &sendBytes,
 		0, &sendData->Overlapped, nullptr))
 	{
+		int error = WSAGetLastError();
 		// 에러 발생시 위에서 동적할당한 데이터 메모리 헤제
-		if (WSAGetLastError() != WSA_IO_PENDING)
+		if (error != WSA_IO_PENDING)
 		{
 			delete sendData;
 		}

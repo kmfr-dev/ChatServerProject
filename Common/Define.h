@@ -26,6 +26,8 @@ struct FBufferInfo
 struct FChatPacket
 {
 	EChatType Type = EChatType::CHAT_TYPE_NONE;
+	int SenderID = -1;
+	long long TimeStamp = 0;
 	char Message[PACKET_SIZE] = { 0, };
 };
 

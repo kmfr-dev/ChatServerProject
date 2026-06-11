@@ -56,6 +56,7 @@ bool CChatServerApp::Init(HINSTANCE _hInstance)
 		CClient* DummyClient = new CClient;
 		DummyClient->SetName("DummyClient" + i);
 		DummyClient->SetSerrverIP(SERVER_IP);
+		DummyClient->SetID(i);
 
 		mTestClients.emplace_back(DummyClient);
 	}
