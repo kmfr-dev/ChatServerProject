@@ -47,6 +47,7 @@ public:
 	CDirectXManager* GetDirectXManager() const { return mDirectXManager; }
 	CGUIManager* GetGUIManager() const { return mGUIManager; }
 	CMessageManager* GetMessageManager() const { return mMessageManager; }
+	CServer* GetServer() const { return mServer; }
 
 private:
 	static CChatServerApp* mInstance;

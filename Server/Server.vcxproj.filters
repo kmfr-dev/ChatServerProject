@@ -87,6 +87,9 @@
     <ClInclude Include="..\Common\TimerManager.h">
       <Filter>Common</Filter>
     </ClInclude>
+    <ClInclude Include="MemoryPoolManager.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Server.cpp">
@@ -136,6 +139,9 @@
     </ClCompile>
     <ClCompile Include="..\Common\TimerManager.cpp">
       <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="MemoryPoolManager.cpp">
+      <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -5,6 +5,7 @@
 #include "Client.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx11.h"
+#include "TimerManager.h"
 
 
 bool CGUIManager::Init(HWND _hWnd, ID3D11Device* _Device, ID3D11DeviceContext* _Context)
@@ -36,6 +37,10 @@ bool CGUIManager::Init(HWND _hWnd, ID3D11Device* _Device, ID3D11DeviceContext* _
 	ImGui_ImplWin32_Init(_hWnd);
 	ImGui_ImplDX11_Init(_Device, _Context);
 
+#ifdef _DEBUG
+	mLastUpdateTime = CTimerManager::GetInstance()->GetCurrentMS();
+#endif
+
 	return true;
 }
 
@@ -61,6 +66,26 @@ void CGUIManager::EndFrame()
 
 void CGUIManager::RenderChat(const CChatServerApp& _App, const std::deque<FChatData>& _ChatList)
 {
+
+#ifdef _DEBUG
+	CMessageManager* msgManager = CChatServerApp::GetInstance()->GetMessageManager();
+	if (nullptr == msgManager)
+		return;
+	
+	SERVER_LOADTEST_CHAT(_App);
+
+	ImGui::Begin("Server Load Test");
+
+	// 연결된 클라이언트 수
+	ImGui::Text("Connected Clients : %d / %d", msgManager->GetConnectedClientCount(),
+		static_cast<int>(_App.GetTestClients().size()));
+
+	ImGui::Text("Echo Responses/sec : %lld", mResponsesPerSec);
+	ImGui::Text("Average RTT (last 1s) : %.3f ms", mAverRTTMS);
+	ImGui::Text("Client Send Errors : %lld", msgManager->GetSendErrorCount());
+
+	ImGui::End();
+#else
 	CClient* client = _App.GetClient();
 	if (nullptr == client)
 		return;
@@ -102,26 +127,24 @@ void CGUIManager::RenderChat(const CChatServerApp& _App, const std::deque<FChatD
 
 		if (ImGui::InputText(" ", NewServerIP, IM_ARRAYSIZE(NewServerIP), ImGuiInputTextFlags_EnterReturnsTrue) == true)
 		{
-			client->SetSerrverIP(NewServerIP);
+			client->SetServerIP(NewServerIP);
 			client->ConnectToServer();
 		}
 	}
 
-	// 서버 IP 및 이름이 있다면 여기서는 데이터송수신
 	else
 	{
 		ImGui::Text("Chat Start!");
 
 		char ChatText[PACKET_SIZE] = { 0, };
-		
+
 		std::string NameText = "Your Name : ";
 		NameText += CChatServerApp::GetInstance()->GetClient()->GetName();
 
 		// 자신 이름 녹색으로 변경
 		ImGui::TextColored({ 0.0f, 1.0f, 0.0f, 1.0f }, NameText.c_str());
 
-		// 채팅을 보냄 : 릴리즈일때만
-#ifndef _DEBUG 
+		// 채팅을 보냄
 		if (ImGui::InputText(" ", ChatText, IM_ARRAYSIZE(ChatText), ImGuiInputTextFlags_EnterReturnsTrue) == true)
 		{
 			CChatServerApp::GetInstance()->GetMessageManager()->AddChat(EChatType::CHAT_TYPE_NORMAL, ChatText, true);
@@ -153,19 +176,34 @@ void CGUIManager::RenderChat(const CChatServerApp& _App, const std::deque<FChatD
 		}
 
 		CChatServerApp::GetInstance()->GetMessageManager()->GetMutex().unlock();
-#else
-		CMessageManager* MsgManager = CChatServerApp::GetInstance()->GetMessageManager();
-		
-		std::atomic<long long> RTT = MsgManager->GetRTT();
-		std::atomic<long long> SCount = MsgManager->GetCount();
-
-		double AverageRtt = (double)RTT.load() / SCount.load() / 1000.0;
-
-		ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), std::string(std::to_string(AverageRtt) + "ms").c_str());
-#endif
-
-
 	}
 
 	ImGui::End();
+#endif
+}
+
+
+void CGUIManager::SERVER_LOADTEST_CHAT(const CChatServerApp& _App)
+{
+	CMessageManager* msgManager = _App.GetMessageManager();
+	if (nullptr == msgManager)
+		return;
+
+	constexpr long long UPDATE_INTERVAL_MS = 1000;
+	const long long curTime = CTimerManager::GetInstance()->GetCurrentMS();
+	const long long elapsedTime = curTime - mLastUpdateTime;
+
+	if (elapsedTime < UPDATE_INTERVAL_MS)
+		return;
+
+	const FRTTStats stats = msgManager->GetIntervalRTT();
+	const double elapsedSec = static_cast<double>(elapsedTime) / UPDATE_INTERVAL_MS;
+
+	mResponsesPerSec = static_cast<long long>
+		(static_cast<double>(stats.ResponseCnt) / elapsedSec);
+
+	mAverRTTMS = stats.ResponseCnt > 0 ? 
+		static_cast<double>(stats.TotalRTT) / stats.ResponseCnt : 0.0;
+	
+	mLastUpdateTime = curTime;
 }

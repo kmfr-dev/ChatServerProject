@@ -55,19 +55,19 @@ private:
 
 	// ============== SERVER LOAD TEST ==============
 private:
-	std::atomic<long long> mTotalRTT = 0;
-	std::atomic<long long> mCount = 0;
+	float mTimes = 0.0f;
+	std::mutex mRTTMutex;
+	FRTTStats mIntervalRTT;
 
 	int mThreadCount = 0;
 	HANDLE mhIOCP = {};
 	std::vector<std::thread> mWorkerThreads;
-	
-	float mTimes = 0.0f;
 	std::thread mTickThread;
 
 public:
-	std::atomic<long long> GetRTT() const { return mTotalRTT.load(); }
-	std::atomic<long long> GetCount() const { return mCount.load(); }
+	FRTTStats GetIntervalRTT();
+	int GetConnectedClientCount() const { return mConnectedClientCount.load(); }
+	long long GetSendErrorCount() const { return mSendErrorCount.load(); }
 
 private:
 	void SERVER_TEST_PROCESSIO();
@@ -75,7 +75,16 @@ private:
 
 public:
 	void SERVER_TEST_InitIOCP();
-	void SERVER_TEST_RegisterRecv(CClient* _Client);
+	void SERVER_TEST_SHUTDOWN();
+	bool SERVER_TEST_RegisterRecv(CClient* _Client);
 	void SERVER_TEST_StartChatSend(CClient* _Client, const std::string& _Message);
+
+private:
+	void AppendRecvData(CClient* _Client, const char* _Data, size_t _RecvBytes);
+	void ProcessPacket(CClient* _Client, const FChatPacket& _Packet);
+
+private:
+	std::atomic<int> mConnectedClientCount = 0;
+	std::atomic<long long> mSendErrorCount = 0;
 	// ==============================================
 };

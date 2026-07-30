@@ -4,6 +4,8 @@
 
 bool CClient::Init()
 {
+
+
 	return true;
 }
 
@@ -53,9 +55,17 @@ void CClient::ConnectToServer()
 
 void CClient::End()
 {
-	shutdown(mConnectedSocket, SD_BOTH);
-	closesocket(mConnectedSocket);
-#ifndef _DEBUG
+	mConnected.store(false);
+#ifdef _DEBUG
+	if (INVALID_SOCKET != mConnectedSocket)
+		closesocket(mConnectedSocket);
+#else
+	if (INVALID_SOCKET != mConnectedSocket)
+	{
+		shutdown(mConnectedSocket, SD_BOTH);
+		closesocket(mConnectedSocket);
+	}
 	WSACleanup();
 #endif
+	mConnectedSocket = INVALID_SOCKET;
 }

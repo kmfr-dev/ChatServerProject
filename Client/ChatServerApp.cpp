@@ -21,7 +21,7 @@ bool CChatServerApp::Init(HINSTANCE _hInstance)
 {
 	if (!CTimerManager::GetInstance()->Init())
 	{
-		CTimerManager::DestroyInstnace();
+		CTimerManager::DestroyInstance();
 		return false;
 	}
 
@@ -54,8 +54,12 @@ bool CChatServerApp::Init(HINSTANCE _hInstance)
 	for (int i = 0; i < MAX_CLIENT; ++i)
 	{
 		CClient* DummyClient = new CClient;
-		DummyClient->SetName("DummyClient" + i);
-		DummyClient->SetSerrverIP(SERVER_IP);
+		
+		std::string DummyName("DummyClient");
+		DummyName += std::to_string(i);
+
+		DummyClient->SetName(DummyName);
+		DummyClient->SetServerIP(SERVER_IP);
 		DummyClient->SetID(i);
 
 		mTestClients.emplace_back(DummyClient);
@@ -164,7 +168,7 @@ void CChatServerApp::Shutdown()
 		mWindowManager = nullptr;
 	}
 
-	CTimerManager::DestroyInstnace();
+	CTimerManager::DestroyInstance();
 }
 
 void CChatServerApp::ResizeWindow()
@@ -179,6 +183,8 @@ void CChatServerApp::ResizeWindow()
 
 void CChatServerApp::SERVER_TEST_ShutdownClients()
 {
+	mMessageManager->SERVER_TEST_SHUTDOWN();
+
 	for (int i = 0; i < mTestClients.size(); ++i)
 	{
 		if (nullptr == mTestClients[i])

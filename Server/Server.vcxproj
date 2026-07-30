@@ -142,6 +142,7 @@
     <ClInclude Include="DirectXManager.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GUIManager.h" />
+    <ClInclude Include="MemoryPoolManager.h" />
     <ClInclude Include="MessageManager.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="Server.h" />
@@ -162,6 +163,7 @@
     <ClCompile Include="DirectXManager.cpp" />
     <ClCompile Include="GUIManager.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="MemoryPoolManager.cpp" />
     <ClCompile Include="MessageManager.cpp" />
     <ClCompile Include="Server.cpp" />
     <ClCompile Include="WindowManager.cpp" />

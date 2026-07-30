@@ -19,5 +19,13 @@ public:
 	void StartFrame();
 	void EndFrame();
 	void RenderChat(const CChatServerApp& _App, const std::deque<FChatData>& _ChatList);
+
+	// SERVER LOAD TEST
+private:
+	long long mLastUpdateTime = 0;
+	long long mResponsesPerSec = 0;
+	double mAverRTTMS = 0.0;
+
+	void SERVER_LOADTEST_CHAT(const CChatServerApp& _App);
 };
 

@@ -17,7 +17,7 @@ public:
 		return mInstance;
 	}
 
-	static void DestroyInstnace()
+	static void DestroyInstance()
 	{
 		if (mInstance)
 		{
@@ -38,5 +38,6 @@ private:
 	static LARGE_INTEGER	mSecond;
 	static LARGE_INTEGER	mTime;
 	static float	mDeltaTime;
+
 };
 

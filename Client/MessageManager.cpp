@@ -12,7 +12,7 @@ bool CMessageManager::Init()
 
 void CMessageManager::End()
 {
-	mRunning = false;
+	mRunning.store(false);
 
 	if(mThread.joinable())
 	{
@@ -91,7 +91,7 @@ void CMessageManager::RegisterRecv()
 	ZeroMemory(&bufferInfo.Overlapped, sizeof(WSAOVERLAPPED));
 	bufferInfo.rwMode = IO_MODE::READ;
 	bufferInfo.WSABuf.buf = bufferInfo.Buffer;
-	bufferInfo.WSABuf.len = sizeof(FChatPacket);
+	bufferInfo.WSABuf.len = BUF_SIZE;
 	
 	DWORD flag = 0;
 
@@ -120,7 +120,7 @@ void CMessageManager::StartChatSend(EChatType _Type, const std::string& _Message
 	strncpy_s(packet->Message, _Message.c_str(), PACKET_SIZE);
 
 	sendData->WSABuf.buf = sendData->Buffer;
-	sendData->WSABuf.len = PACKET_SIZE;
+	sendData->WSABuf.len = sizeof(FChatPacket);
 
 	std::lock_guard<std::mutex> lock(mChatMutex);
 
@@ -176,20 +176,64 @@ void CALLBACK CMessageManager::RequestAsyncSend(ULONG_PTR _Ptr)
 		SOCKET clientSock = CChatServerApp::GetInstance()->GetClient()->GetSocket();
 
 		// 실제로 비동기 수신 요청.
-		WSASend(clientSock, &sendData->WSABuf, 1, &sendBytes, 0, &sendData->Overlapped, &CMessageManager::SuccessAsyncSend);
+		sendData->TotalBytes = sizeof(FChatPacket);
+		sendData->TransferredBytes = 0;
+
+		const int result = WSASend(clientSock, &sendData->WSABuf, 1, &sendBytes,
+			0, &sendData->Overlapped, &CMessageManager::SuccessAsyncSend);
+
+		if (SOCKET_ERROR == result && WSAGetLastError() != WSA_IO_PENDING)
+			delete sendData;
 	}
 }
 
 void CMessageManager::SuccessAsyncSend(DWORD _Error, DWORD _Bytes, LPWSAOVERLAPPED _Overlapped, DWORD _Flags)
 {
-	// 송신 콜백이면, 
-	// 이전에 동적할당된 버퍼 정보이므로 메모리만 해제한다.
 	FBufferInfo* bufferInfo = (FBufferInfo*)_Overlapped;
+	if (!bufferInfo)
+		return;
+
+	if (_Error || 0 == _Bytes)
+	{
+		delete bufferInfo;
+		return;
+	}
+
+	bufferInfo->TransferredBytes += _Bytes;
+
+	if (bufferInfo->TransferredBytes < bufferInfo->TotalBytes)
+	{
+		ZeroMemory(&bufferInfo->Overlapped, sizeof(bufferInfo->Overlapped));
+		bufferInfo->WSABuf.buf = bufferInfo->Buffer + bufferInfo->TransferredBytes;
+		bufferInfo->WSABuf.len = static_cast<ULONG>(
+			bufferInfo->TotalBytes - bufferInfo->TransferredBytes);
+
+		DWORD sendBytes = 0;
+		SOCKET clientSock = CChatServerApp::GetInstance()->GetClient()->GetSocket();
+		const int result = WSASend(clientSock, &bufferInfo->WSABuf, 1, &sendBytes,
+			0, &bufferInfo->Overlapped, &CMessageManager::SuccessAsyncSend);
+
+		if (SOCKET_ERROR == result && WSAGetLastError() != WSA_IO_PENDING)
+			delete bufferInfo;
+
+		return;
+	}
 
 	delete bufferInfo;
 }
 
 // SERVER LOAD TEST
+
+FRTTStats CMessageManager::GetIntervalRTT()
+{
+	std::lock_guard<std::mutex> lock(mRTTMutex);
+
+	const FRTTStats result = mIntervalRTT;
+
+	mIntervalRTT = {};
+
+	return result;
+}
 
 void CMessageManager::SERVER_TEST_PROCESSIO()
 {
@@ -204,33 +248,60 @@ void CMessageManager::SERVER_TEST_PROCESSIO()
 		if (result == TRUE && client == nullptr && overlapped == nullptr)
 			break;
 
-		if (FALSE == result || client == nullptr || overlapped == nullptr)
+		FBufferInfo* IOData = (FBufferInfo*)overlapped;
+
+		if (FALSE == result)
+		{
+			if (IOData && IOData->rwMode == IO_MODE::WRITE)
+			{
+				mSendErrorCount.fetch_add(1);
+				delete IOData;
+			}
+			continue;
+		}
+
+		if (client == nullptr || overlapped == nullptr)
 			continue;
 
-		FBufferInfo* IOData = (FBufferInfo*)overlapped;
 		if (IOData->rwMode == IO_MODE::WRITE)
 		{
+			if (0 == byetsRansferred)
+			{
+				mSendErrorCount.fetch_add(1);
+				delete IOData;
+				continue;
+			}
+
+			IOData->TransferredBytes += byetsRansferred;
+
+			if (IOData->TransferredBytes < IOData->TotalBytes)
+			{
+				ZeroMemory(&IOData->Overlapped, sizeof(IOData->Overlapped));
+				IOData->WSABuf.buf = IOData->Buffer + IOData->TransferredBytes;
+				IOData->WSABuf.len = static_cast<ULONG>(
+					IOData->TotalBytes - IOData->TransferredBytes);
+
+				DWORD sendBytes = 0;
+				const int sendResult = WSASend(client->GetSocket(), &IOData->WSABuf, 1,
+					&sendBytes, 0, &IOData->Overlapped, nullptr);
+
+				if (SOCKET_ERROR == sendResult && WSAGetLastError() != WSA_IO_PENDING)
+				{
+					mSendErrorCount.fetch_add(1);
+					delete IOData;
+				}
+
+				continue;
+			}
+
 			delete IOData;
-
-			if (!mRunning)
-				break;
-
 			continue;
 		}
 
 		// 읽기 모드면, Client -> Server로 전송한 정보
 		if (IOData->rwMode == IO_MODE::READ)
 		{
-			FChatPacket* Packet = (FChatPacket*)IOData->Buffer;
-			if (Packet->SenderID == client->GetID())
-			{
-				long long CurTime = CTimerManager::GetInstance()->GetCurrentMS();
-				long long RTT = CurTime - Packet->TimeStamp;
-
-				mTotalRTT.fetch_add(RTT);
-				mCount.fetch_add(1);
-			}
-
+			AppendRecvData(client, IOData->Buffer, byetsRansferred);
 			// 수신 예약
 			SERVER_TEST_RegisterRecv(client);
 		}
@@ -244,16 +315,16 @@ void CMessageManager::SERVER_TEST_SendToServer()
 
 	while (mRunning)
 	{
-		float DeltaSeconds = CTimerManager::GetInstance()->UpdateTick();
-		mTimes += DeltaSeconds;
+		if (!mRunning)
+			break;
 
-		if (mTimes >= SERVERTEST_CLIENT_SENDINTERVAL)
+		mTimes += CTimerManager::GetInstance()->UpdateTick();
+
+		if (mTimes >= SERVER_LOADTEST_SEND_INTERVAL)
 		{
-
-			for (int i = 0; i < Clients.size(); ++i)
+			for (CClient* DummyClient : Clients)
 			{
-				CClient* DummyClient = Clients[i];
-				if (nullptr == DummyClient)
+				if (nullptr == DummyClient || !DummyClient->IsConnected())
 					continue;
 
 				SERVER_TEST_StartChatSend(DummyClient, DummyClient->GetName());
@@ -265,14 +336,7 @@ void CMessageManager::SERVER_TEST_SendToServer()
 }
 
 void CMessageManager::SERVER_TEST_InitIOCP()
-{
-	mhIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, mThreadCount);
-	if (NULL == mhIOCP)
-	{
-		std::cerr << "CP object create failed. error code: " << GetLastError() << std::endl;
-		return;
-	}
-	
+{	
 	WSADATA wsa = {};
 
 	int wsaStartResult = WSAStartup(MAKEWORD(2, 2), &wsa);
@@ -280,6 +344,17 @@ void CMessageManager::SERVER_TEST_InitIOCP()
 	if (0 != wsaStartResult)
 	{
 		std::cerr << "WSAStartup failed.. error code : " << wsaStartResult << std::endl;
+		return;
+	}
+
+	mRunning.store(true, std::memory_order_release);
+
+	mThreadCount = std::thread::hardware_concurrency() * 2;
+
+	mhIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, mThreadCount);
+	if (NULL == mhIOCP)
+	{
+		std::cerr << "CP object create failed. error code: " << GetLastError() << std::endl;
 		return;
 	}
 
@@ -305,20 +380,35 @@ void CMessageManager::SERVER_TEST_InitIOCP()
 		if (connect(Sock, (SOCKADDR*)&addr, sizeof(addr)))
 		{
 			std::cerr << "Connected failed.." << std::endl;
+			closesocket(Sock);
+			Sock = INVALID_SOCKET;
 			continue;
 		}
 
 		if (INVALID_SOCKET == Sock)
 			continue;
 
-		CreateIoCompletionPort((HANDLE)Sock, mhIOCP, (ULONG_PTR)DummyClient, 0);
+		HANDLE portResult = CreateIoCompletionPort(
+			(HANDLE)Sock, mhIOCP, (ULONG_PTR)DummyClient, 0);
+		if (NULL == portResult)
+		{
+			closesocket(Sock);
+			Sock = INVALID_SOCKET;
+			continue;
+		}
 
 		DummyClient->GetRecvBuffer().rwMode = IO_MODE::READ;
 
-		SERVER_TEST_RegisterRecv(DummyClient);
-	}
+		if (!SERVER_TEST_RegisterRecv(DummyClient))
+		{
+			closesocket(Sock);
+			Sock = INVALID_SOCKET;
+			continue;
+		}
 
-	mThreadCount = std::thread::hardware_concurrency() * 2;
+		DummyClient->SetConnected(true);
+		mConnectedClientCount.fetch_add(1);
+	}
 
 	mWorkerThreads.reserve(mThreadCount);
 	for (int i = 0; i < mThreadCount; ++i)
@@ -328,15 +418,51 @@ void CMessageManager::SERVER_TEST_InitIOCP()
 
 	// 틱쓰레드 돌리기
 	mTickThread = std::thread(&CMessageManager::SERVER_TEST_SendToServer, this);
-	mRunning = true;
 }
 
-void CMessageManager::SERVER_TEST_RegisterRecv(CClient* _Client)
+void CMessageManager::SERVER_TEST_SHUTDOWN()
+{
+	mRunning.store(false);
+
+	if (mTickThread.joinable())
+		mTickThread.join();
+
+	const auto& clients = CChatServerApp::GetInstance()->GetTestClients();
+
+	for (CClient* client : clients)
+	{
+		if (!client || !client->IsConnected())
+			continue;
+
+		shutdown(client->GetSocket(), SD_BOTH);
+		CancelIoEx(reinterpret_cast<HANDLE>(client->GetSocket()), nullptr);
+		client->SetConnected(false);
+	}
+
+	for (size_t i = 0; i < mWorkerThreads.size(); ++i)
+		PostQueuedCompletionStatus(mhIOCP, 0, 0, nullptr);
+
+	for (std::thread& worker : mWorkerThreads)
+	{
+		if (worker.joinable())
+			worker.join();
+	}
+
+	mWorkerThreads.clear();
+
+	if (mhIOCP)
+	{
+		CloseHandle(mhIOCP);
+		mhIOCP = nullptr;
+	}
+}
+
+bool CMessageManager::SERVER_TEST_RegisterRecv(CClient* _Client)
 {
 	if (nullptr == _Client)
 	{
 		std::cerr << "Client nullptr..!" << std::endl;
-		return;
+		return false;
 	}
 
 	// 특정 클라 락잡기
@@ -347,7 +473,7 @@ void CMessageManager::SERVER_TEST_RegisterRecv(CClient* _Client)
 
 	bufferInfo.rwMode = IO_MODE::READ;
 	bufferInfo.WSABuf.buf = bufferInfo.Buffer;
-	bufferInfo.WSABuf.len = sizeof(FChatPacket);
+	bufferInfo.WSABuf.len = BUF_SIZE;
 
 	DWORD flag = 0;
 
@@ -361,8 +487,11 @@ void CMessageManager::SERVER_TEST_RegisterRecv(CClient* _Client)
 		if (error != WSA_IO_PENDING)
 		{
 			std::cerr << "WSARecv Error : " + std::to_string(error) << std::endl;
+			return false;
 		}
 	}
+
+	return true;
 }
 
 void CMessageManager::SERVER_TEST_StartChatSend(CClient* _Client, const std::string& _Message)
@@ -376,6 +505,8 @@ void CMessageManager::SERVER_TEST_StartChatSend(CClient* _Client, const std::str
 	// 송신 버퍼 동적 할당, 완료되기 전에 스택에서 사라지기 때문에
 	FBufferInfo* sendData = new FBufferInfo;
 	sendData->rwMode = IO_MODE::WRITE;
+	sendData->TotalBytes = sizeof(FChatPacket);
+	sendData->TransferredBytes = 0;
 	sendData->WSABuf.buf = sendData->Buffer;
 	sendData->WSABuf.len = sizeof(FChatPacket);
 
@@ -387,7 +518,7 @@ void CMessageManager::SERVER_TEST_StartChatSend(CClient* _Client, const std::str
 	strncpy_s(packet->Message, _Message.c_str(), _TRUNCATE);
 
 	std::lock_guard<std::mutex> lock(_Client->GetMutex());
-	_Client->GetSendQueue().push(sendData);
+	//_Client->GetSendQueue().push(sendData);
 
 	DWORD sendBytes = 0;
 
@@ -399,7 +530,54 @@ void CMessageManager::SERVER_TEST_StartChatSend(CClient* _Client, const std::str
 		// 에러 발생시 위에서 동적할당한 데이터 메모리 헤제
 		if (error != WSA_IO_PENDING)
 		{
+			mSendErrorCount.fetch_add(1);
 			delete sendData;
 		}
 	}
+}
+
+void CMessageManager::AppendRecvData(CClient* _Client, const char* _Data, size_t _RecvBytes)
+{
+	auto& packetBuffer = _Client->GetPacketBuffer();
+	size_t& packetBytes = _Client->GetPacketBytes();
+
+	size_t offset = 0;
+
+	while (offset < _RecvBytes)
+	{
+		const size_t required = sizeof(FChatPacket) - packetBytes;
+		const size_t copyBytes = (std::min)(required, _RecvBytes - offset);
+
+		std::memcpy(packetBuffer.data() + packetBytes, _Data + offset, copyBytes);
+
+		packetBytes += copyBytes;
+		offset += copyBytes;
+
+		if (packetBytes == sizeof(FChatPacket))
+		{
+			FChatPacket packet{};
+
+			std::memcpy(&packet, packetBuffer.data(), sizeof(packet));
+			packetBytes = 0;
+
+			ProcessPacket(_Client, packet);
+		}
+	}
+}
+
+void CMessageManager::ProcessPacket(CClient* _Client, const FChatPacket& _Packet)
+{
+	if (!_Client)
+		return;
+
+	if (_Packet.SenderID != _Client->GetID())
+		return;
+
+	const long long now = CTimerManager::GetInstance()->GetCurrentMS();
+	const long long rtt = now - _Packet.TimeStamp;
+	
+	std::lock_guard<std::mutex> lock(mRTTMutex);
+	
+	mIntervalRTT.TotalRTT += rtt;
+	++mIntervalRTT.ResponseCnt;
 }

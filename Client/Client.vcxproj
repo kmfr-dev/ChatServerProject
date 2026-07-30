@@ -145,6 +145,7 @@
     <ClInclude Include="DirectXManager.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GUIManager.h" />
+    <ClInclude Include="LoadTestManager.h" />
     <ClInclude Include="MessageManager.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
@@ -164,6 +165,7 @@
     <ClCompile Include="Client.cpp" />
     <ClCompile Include="DirectXManager.cpp" />
     <ClCompile Include="GUIManager.cpp" />
+    <ClCompile Include="LoadTestManager.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MessageManager.cpp" />
     <ClCompile Include="WindowManager.cpp" />

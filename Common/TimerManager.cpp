@@ -29,7 +29,8 @@ long long CTimerManager::GetCurrentMS()
 	LARGE_INTEGER Time;
 	QueryPerformanceCounter(&Time);
 
-	double ms = (double)Time.QuadPart / (double)mSecond.QuadPart * 1000000.0;
+	double ms = static_cast<double>(Time.QuadPart) / 
+		static_cast<double>(mSecond.QuadPart)* 1000.0;
 
-	return (long long)ms;
+	return static_cast<long long>(ms);
 }

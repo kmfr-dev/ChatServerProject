@@ -5,6 +5,7 @@
 #include "MessageManager.h"
 #include "Server.h"
 #include "TimerManager.h"
+#include "MemoryPoolManager.h"
 
 CChatServerApp* CChatServerApp::mInstance = nullptr;
 
@@ -22,7 +23,7 @@ bool CChatServerApp::Init(HINSTANCE _hInstance)
 {
 	if (!CTimerManager::GetInstance()->Init())
 	{
-		CTimerManager::DestroyInstnace();
+		CTimerManager::DestroyInstance();
 		return false;
 	}
 
@@ -144,7 +145,7 @@ void CChatServerApp::Shutdown()
 		mMessageManager = nullptr;
 	}
 
-	CTimerManager::DestroyInstnace();
+	CTimerManager::DestroyInstance();
 }
 
 void CChatServerApp::ResizeWindow()

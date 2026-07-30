@@ -2,6 +2,8 @@
 
 #include "../Common/DefineHeaders.h"
 
+class CChatServerApp;
+
 class CGUIManager
 {
 
@@ -15,5 +17,14 @@ public:
 
 	void StartFrame();
 	void EndFrame();
-	void RenderChat(const class CChatServerApp& _App, const std::deque<std::string>& _ChatList);
+	void RenderChat(const CChatServerApp& _App, const std::deque<std::string>& _ChatList);
+
+
+	// SERVER LOAD TEST
+private:
+	long long mLastUpdateTime = 0;
+	long long mPrevDroppedCount = 0;
+	double mDroppedPerSecond = 0.0;
+
+	void SERVER_LOADTEST_CHAT(const CChatServerApp& _App);
 };
