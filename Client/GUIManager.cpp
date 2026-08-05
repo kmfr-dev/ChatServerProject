@@ -68,6 +68,16 @@ void CGUIManager::RenderChat(const CChatServerApp& _App, const std::deque<FChatD
 {
 
 #ifdef _DEBUG
+
+	RECT rect;
+
+	GetClientRect(_App.GetWindowManager()->GethWnd(), &rect);
+	float width = (float)(rect.right - rect.left);
+	float height = (float)(rect.bottom - rect.top);
+
+	ImGui::SetNextWindowPos(ImVec2(5, 5), ImGuiCond_Always);
+	ImGui::SetNextWindowSize(ImVec2(width - 10.0f, height - 90.0f), ImGuiCond_Always);
+
 	CMessageManager* msgManager = CChatServerApp::GetInstance()->GetMessageManager();
 	if (nullptr == msgManager)
 		return;
@@ -79,7 +89,6 @@ void CGUIManager::RenderChat(const CChatServerApp& _App, const std::deque<FChatD
 	// 연결된 클라이언트 수
 	ImGui::Text("Connected Clients : %d / %d", msgManager->GetConnectedClientCount(),
 		static_cast<int>(_App.GetTestClients().size()));
-
 	ImGui::Text("Echo Responses/sec : %lld", mResponsesPerSec);
 	ImGui::Text("Average RTT (last 1s) : %.3f ms", mAverRTTMS);
 	ImGui::Text("Client Send Errors : %lld", msgManager->GetSendErrorCount());

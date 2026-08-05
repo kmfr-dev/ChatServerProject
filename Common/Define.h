@@ -8,14 +8,18 @@
 #define BUF_SIZE 4096
 #define PACKET_SIZE 1024
 #define CLIENTMAX_CHATSIZE 20
-#define MAX_CLIENT 500
+#define MAX_CLIENT 1000
+
 #define SERVER_MAXLOGSIZE 5000
 #define SERVER_IP "127.0.0.1"
+
 #define SERVER_LOADTEST_SEND_INTERVAL 1.0f
 #define POOL_SIZE 2000
 #define MEMORY_CHUNKSIZE 1024
 #define MAX_MEMORY_CHUNKS 64
-#define MAX_PENDING_SEND_PER_CLIENT 256
+
+#define MAX_QUEUED_PACKET_PER_CLIENT 20
+#define MAX_BATCH_PACKET_COUNT 3
 
 struct FBufferInfo
 {
@@ -26,6 +30,9 @@ struct FBufferInfo
 	IO_MODE rwMode = IO_MODE::NONE;
 	size_t TotalBytes = 0;
 	size_t TransferredBytes = 0;
+
+	// 송신 배치에 들어간 FChatPacket 개수
+	size_t PacketCount = 0;
 };
 
 struct FChatPacket
@@ -35,6 +42,9 @@ struct FChatPacket
 	long long TimeStamp = 0;
 	char Message[PACKET_SIZE] = { 0, };
 };
+
+static_assert(sizeof(FChatPacket) * MAX_BATCH_PACKET_COUNT <= BUF_SIZE, 
+	"Batch buffer size exceeded.");
 
 struct FChatData
 {
@@ -66,6 +76,7 @@ public:
 		ReturnPacket.Type = _Type;
 		ReturnPacket.SenderID = _SenderID;
 		ReturnPacket.TimeStamp = _TimeStamp;
+		strncpy_s(ReturnPacket.Message, _Message.c_str(), PACKET_SIZE);
 
 		return ReturnPacket;
 	}

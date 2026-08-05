@@ -309,28 +309,101 @@ void CMessageManager::SERVER_TEST_PROCESSIO()
 	}
 }
 
+//void CMessageManager::SERVER_TEST_SendToServer()
+//{
+//	const std::vector<CClient*>& Clients = CChatServerApp::GetInstance()->GetTestClients();
+//
+//	while (mRunning)
+//	{
+//		if (!mRunning)
+//			break;
+//
+//		mTimes += CTimerManager::GetInstance()->UpdateTick();
+//
+//		if (mTimes >= SERVER_LOADTEST_SEND_INTERVAL)
+//		{
+//			for (CClient* DummyClient : Clients)
+//			{
+//				if (nullptr == DummyClient || !DummyClient->IsConnected())
+//					continue;
+//
+//				SERVER_TEST_StartChatSend(DummyClient, DummyClient->GetName());
+//			}
+//
+//			mTimes = 0.0f;
+//		}
+//	}
+//}
+
+// 모든 Dummy Client가 주기마다 한 번씩 메시지를 보내되, 몰아 보내지 않고 여러 Tick으로 나눠서 전송
 void CMessageManager::SERVER_TEST_SendToServer()
 {
-	const std::vector<CClient*>& Clients = CChatServerApp::GetInstance()->GetTestClients();
+	const auto& clients = CChatServerApp::GetInstance()->GetTestClients();
+	CTimerManager* timerManager = CTimerManager::GetInstance();
 
-	while (mRunning)
+	// 초단위 송신 주기를 밀리초로 바꿈
+	const long long sendMS = (static_cast<long long>(SERVER_LOADTEST_SEND_INTERVAL * 1000.0f));
+	// 한 Tick에서 송신할 권장 클라이언트 수
+	constexpr size_t CLIENTS_PER_TICK = 10;
+	// Tick이 지나치게 짧아지는 것 방지
+	constexpr long long MIN_TICK_MS = 2;
+	// 현재 Tick 시간 저장
+	long long nextTickTimeMS = timerManager->GetCurrentMS();
+
+	while (mRunning.load())
 	{
-		if (!mRunning)
-			break;
-
-		mTimes += CTimerManager::GetInstance()->UpdateTick();
-
-		if (mTimes >= SERVER_LOADTEST_SEND_INTERVAL)
+		const size_t clientCount = clients.size();
+		// 클라이언트가 없는 경우 
+		if (0 == clientCount)
 		{
-			for (CClient* DummyClient : Clients)
+			Sleep(100);
+
+			nextTickTimeMS = timerManager->GetCurrentMS();
+			continue;
+		}
+
+		// 한 Tick당 보내기 위해 필요한 Tick 수
+		const size_t desiredTickCount = (clientCount + CLIENTS_PER_TICK - 1) / CLIENTS_PER_TICK;
+		// 최소 Tick 간격을 기준으로 주기 안에 허용되는 최대 Tick 수
+		const size_t maxTickCount = (std::max)(static_cast<size_t>(1), 
+			static_cast<size_t>(sendMS / MIN_TICK_MS));
+
+		// 원하는 tick수와 허용 가능한 최대 tick수 중 작은값 선택
+		const size_t tickCount = (std::min)(desiredTickCount, maxTickCount);
+		// 전체 주기를 실제 tick 주기로 나눠 tick 간격을 계산
+		const long long tickIntervalMS = (std::max)(MIN_TICK_MS, 
+			sendMS / static_cast<long long>(tickCount));
+
+		// 실제 분산 송신 시작
+		for (size_t tick = 0; tick < tickCount && mRunning.load(); ++tick)
+		{
+			// 현재 시각이 예정 시각보다 빠르면 차이만큼 대기
+			const long long currentTimeMS = timerManager->GetCurrentMS();
+			if (currentTimeMS < nextTickTimeMS)
+				Sleep(static_cast<DWORD>(nextTickTimeMS - currentTimeMS));
+
+			// 전체 클라이언트를 tickCount개 구간으로 균등 분배
+			const size_t beginIndex = tick * clientCount / tickCount;
+			const size_t endIndex = (tick + 1) * clientCount / tickCount;
+
+			// 해당 Tick의 메시지 송신
+			for (size_t index = beginIndex; index < endIndex; ++index)
 			{
-				if (nullptr == DummyClient || !DummyClient->IsConnected())
+				CClient* client = clients[index];
+				if (nullptr == client || !client->IsConnected())
 					continue;
 
-				SERVER_TEST_StartChatSend(DummyClient, DummyClient->GetName());
+				SERVER_TEST_StartChatSend(client, client->GetName());
 			}
+			
+			// 다음 예정 시각 갱신
+			nextTickTimeMS += tickIntervalMS;
 
-			mTimes = 0.0f;
+			// 송신 작업이 Tick 간격보다 오래 걸렸다면
+			// 밀린 Tick들을 한꺼번에 실행하지 않도록 재조정
+			const long long nowMS = timerManager->GetCurrentMS();
+			if (nextTickTimeMS < nowMS)
+				nextTickTimeMS = nowMS + tickIntervalMS;
 		}
 	}
 }

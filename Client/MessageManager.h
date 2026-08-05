@@ -55,7 +55,6 @@ private:
 
 	// ============== SERVER LOAD TEST ==============
 private:
-	float mTimes = 0.0f;
 	std::mutex mRTTMutex;
 	FRTTStats mIntervalRTT;
 

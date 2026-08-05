@@ -100,7 +100,7 @@ void CGUIManager::RenderChat(const CChatServerApp& _App, const std::deque<std::s
 	SERVER_LOADTEST_CHAT(_App);
 
 	ImGui::Text("Connected Clients : %lld", server->GetConnectedClientCount());
-	ImGui::Text("Pending Sends : %lld", server->GetPendingSendCount());
+	ImGui::Text("Pending Sends : %lld", server->GetQueuedPacketCount());
 	ImGui::Text("Dropped Sends/sec : %.1f", mDroppedPerSecond);
 	ImGui::Text("Dropped Sends Total : %lld", server->GetDroppedSendCount());
 #endif
@@ -127,5 +127,6 @@ void CGUIManager::SERVER_LOADTEST_CHAT(const CChatServerApp& _App)
 
 	mDroppedPerSecond = static_cast<double>(curDroppedCnt - mPrevDroppedCount) / elapsedSec;
 	mPrevDroppedCount = curDroppedCnt;
+
 	mLastUpdateTime = curTime;
 }

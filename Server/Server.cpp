@@ -143,63 +143,89 @@ bool CServer::RegisterRecv(FClient* _Client)
 
 void CServer::BroadCastPacket(const FChatPacket& _Packet)
 {
-	std::lock_guard<std::mutex> lock(mClientMutex);
+	std::vector<FClient*> targets;
 
-	// 전체 클라이언트에게 브로드 캐스트
-	for (std::pair<FClient*, std::string>& pair : mClients)
+	// targets에 모든 클라이언트 추가
 	{
-		FClient* client = pair.first;
+		std::lock_guard<std::mutex> lock(mClientMutex);
 
-		if (nullptr == client || INVALID_SOCKET == client->ClientSock || client->IsClosing)
-			continue;
+		targets.reserve(mClients.size());
 
-		if (client->PendingSendCount.load() >= MAX_PENDING_SEND_PER_CLIENT)
+		for (const auto& pair : mClients)
 		{
-			mDroppedSendCount.fetch_add(1);
-			continue;
-		}
+			FClient* client = pair.first;
+			if (nullptr == client)
+				continue;
 
-		// 송신용 데이터 동적할당, 수신 완료 후 워커 쓰레드에서 해제함.
-		FBufferInfo* sendData = CMemoryPoolManager::GetInstance()->Get();
-		if (nullptr == sendData)
-		{
-			mDroppedSendCount.fetch_add(1);
-			continue;
-		}
+			if (client->IsClosing.load())
+				continue;
 
-		sendData->rwMode = IO_MODE::WRITE;
-		sendData->TotalBytes = sizeof(_Packet);
-		sendData->TransferredBytes = 0;
-		memcpy(sendData->Buffer, &_Packet, sizeof(_Packet));
-		sendData->WSABuf.buf = sendData->Buffer;
-		sendData->WSABuf.len = static_cast<ULONG>(sendData->TotalBytes);
-
-		if (!RegisterSend(client, sendData))
-		{
-			CMemoryPoolManager::GetInstance()->Release(sendData);
-			mDroppedSendCount.fetch_add(1);
+			targets.emplace_back(client);
 		}
 	}
+
+	for (FClient* client : targets)
+	{
+		if (!EnqueueSend(client, _Packet))
+			mDroppedSendCount.fetch_add(1);
+	}
 }
+
+//void CServer::BroadCastPacket(const FChatPacket& _Packet)
+//{
+//	std::lock_guard<std::mutex> lock(mClientMutex);
+//
+//	// 전체 클라이언트에게 브로드 캐스트
+//	for (std::pair<FClient*, std::string>& pair : mClients)
+//	{
+//		FClient* client = pair.first;
+//
+//		if (nullptr == client || INVALID_SOCKET == client->ClientSock || client->IsClosing)
+//			continue;
+//
+//		if (client->PendingSendCount.load() >= MAX_PENDING_SEND_PER_CLIENT)
+//		{
+//			mDroppedSendCount.fetch_add(1);
+//			continue;
+//		}
+//
+//		// 송신용 데이터 동적할당, 수신 완료 후 워커 쓰레드에서 해제함.
+//		FBufferInfo* sendData = CMemoryPoolManager::GetInstance()->Get();
+//		if (nullptr == sendData)
+//		{
+//			mDroppedSendCount.fetch_add(1);
+//			continue;
+//		}
+//
+//		sendData->rwMode = IO_MODE::WRITE;
+//		sendData->TotalBytes = sizeof(_Packet);
+//		sendData->TransferredBytes = 0;
+//		memcpy(sendData->Buffer, &_Packet, sizeof(_Packet));
+//		sendData->WSABuf.buf = sendData->Buffer;
+//		sendData->WSABuf.len = static_cast<ULONG>(sendData->TotalBytes);
+//
+//		if (!RegisterSend(client, sendData))
+//		{
+//			CMemoryPoolManager::GetInstance()->Release(sendData);
+//			mDroppedSendCount.fetch_add(1);
+//		}
+//	}
+//}
 
 bool CServer::RegisterSend(FClient* _Client, FBufferInfo* _SendData)
 {
 	if (!_Client || !_SendData || INVALID_SOCKET == _Client->ClientSock)
 		return false;
 
-	_Client->PendingSendCount.fetch_add(1);
-	mPendingSendCount.fetch_add(1);
+	if (_Client->IsClosing.load())
+		return false;
 
 	DWORD sendBytes = 0;
 	const int result = WSASend(_Client->ClientSock, &_SendData->WSABuf, 1,
 		&sendBytes, 0, &_SendData->Overlapped, nullptr);
 
 	if (SOCKET_ERROR == result && WSAGetLastError() != WSA_IO_PENDING)
-	{
-		_Client->PendingSendCount.fetch_sub(1);
-		mPendingSendCount.fetch_sub(1);
 		return false;
-	}
 
 	return true;
 }
@@ -224,6 +250,22 @@ void CServer::ExitClient(FClient* _Client)
 	bool Expected = false;
 	if (!_Client->IsClosing.compare_exchange_strong(Expected, true))
 		return;
+
+	// 송신 배치로 만들어 지지 않은 큐 패킷 정리
+	long long queueDropCount = 0;
+	{
+		std::lock_guard<std::mutex> lock(_Client->SendMutex);
+		queueDropCount = static_cast<long long>(_Client->SendQueue.size());
+
+		_Client->SendQueue.clear();
+		_Client->SendInProgress = false;
+	}
+
+	if (queueDropCount)
+	{
+		mQueuedPacketCount.fetch_sub(queueDropCount);
+		mDroppedSendCount.fetch_add(queueDropCount);
+	}
 
 	std::string clientName;
 
@@ -386,11 +428,14 @@ void CServer::ProcessIO()
 				if (client)
 					client->PendingSendCount.fetch_sub(1);
 				mPendingSendCount.fetch_sub(1);
-				CMemoryPoolManager::GetInstance()->Release(IOData);
+			
+				FailSend(client, IOData);
 			}
 			
-			if(client)
+			else if (client)
+			{
 				ExitClient(client);
+			}
 
 			continue;
 		}
@@ -402,11 +447,15 @@ void CServer::ProcessIO()
 			{
 				if (client)
 					client->PendingSendCount.fetch_sub(1);
-				mPendingSendCount.fetch_sub(1);
-				CMemoryPoolManager::GetInstance()->Release(IOData);
-			}
 
-			ExitClient(client);
+				mPendingSendCount.fetch_sub(1);
+				
+				FailSend(client, IOData);
+			}
+			else if(client)
+			{
+				ExitClient(client);
+			}
 
 			continue;
 		}
@@ -418,7 +467,7 @@ void CServer::ProcessIO()
 			// 받은 데이터 크기만큼 누적
 			IOData->TransferredBytes += bytesRansferred;
 
-			// 패킷 하나의 크기
+			// 현재 배치가 아직 완전히 전송되지 않았으면
 			if (IOData->TransferredBytes < IOData->TotalBytes)
 			{
 				ZeroMemory(&IOData->Overlapped, sizeof(IOData->Overlapped));
@@ -426,27 +475,22 @@ void CServer::ProcessIO()
 				IOData->WSABuf.len = static_cast<ULONG>(
 					IOData->TotalBytes - IOData->TransferredBytes);
 
-				DWORD sendBytes = 0;
-				const int sendResult = WSASend(client->ClientSock, &IOData->WSABuf, 1,
-					&sendBytes, 0, &IOData->Overlapped, nullptr);
-
-				if (SOCKET_ERROR == sendResult && WSAGetLastError() != WSA_IO_PENDING)
+				// 동일한 배치의 남은 부분을 재전송
+				if (!RegisterSend(client, IOData))
 				{
 					client->PendingSendCount.fetch_sub(1);
 					mPendingSendCount.fetch_sub(1);
-					mDroppedSendCount.fetch_add(1);
-					CMemoryPoolManager::GetInstance()->Release(IOData);
-					ExitClient(client);
+
+					FailSend(client, IOData);
 				}
 
 				continue;
 			}
 
-			if (client)
-				client->PendingSendCount.fetch_sub(1);
+			client->PendingSendCount.fetch_sub(1);
 			mPendingSendCount.fetch_sub(1);
-			CMemoryPoolManager::GetInstance()->Release(IOData);
 
+			CompleteSend(client, IOData);
 			continue;
 		}
 
@@ -473,7 +517,7 @@ void CServer::AppendRecvData(FClient* _Client, const char* _Data, size_t _RecvBy
 	{
 		// 현재 조립 중인 패킷을 완성하기 위해 추가로 필요한 Byte 수를 계산
 		const size_t required = sizeof(FChatPacket) - _Client->PacketBytes;
-		// 복사할 패킷 크기 계산 둘 중 작은 값만 복사해야 버퍼를 넘지 않음. 
+		// 복사할 패킷 크기 계산, 둘 중 작은 값만 복사해야 버퍼를 넘지 않음. 
 		// 1. 패킷 완성에 필요한 바이트, 2. 현재 Recv 데이터에 남은 바이트
 		const size_t copyBytes = (std::min)(required, _RecvBytes - offset);
 
@@ -535,4 +579,182 @@ void CServer::ProcessPacket(FClient* _Client, const FChatPacket& _Packet)
 
 	// 전체 클라에게 브로드 캐스트
 	BroadCastPacket(CUtils::MakePacket(chatType, formatMsg, _Packet.SenderID, _Packet.TimeStamp));
+}
+
+// 큐가 비어있고, 송신도 없던 클라이언트만 새로운 송신을 시작.
+// 이미 송신 중이라면, 패킷을 큐에 추가하기만 함.
+bool CServer::EnqueueSend(FClient* _Client, const FChatPacket& _Packet)
+{
+	if (nullptr == _Client)
+		return false;
+
+	bool bStart = false;
+
+	{
+		std::lock_guard<std::mutex> lock(_Client->SendMutex);
+
+		if (_Client->IsClosing)
+			return false;
+
+		if (_Client->SendQueue.size() >= MAX_QUEUED_PACKET_PER_CLIENT)
+			return false;
+
+		_Client->SendQueue.emplace_back(_Packet);
+		mQueuedPacketCount.fetch_add(1);
+
+		// 현재 송신 중인 작업이 없다면, 
+		// 이 함수를 호출하는 쓰레드가 송신을 시작
+		if (!_Client->SendInProgress)
+		{
+			_Client->SendInProgress = true;
+			bStart = true;
+		}
+	}
+
+	// Mutex lock 해제 후 WSASend를 실행
+	if (bStart)
+		PostNextBatch(_Client);
+
+	return true;
+}
+
+void CServer::PostNextBatch(FClient* _Client)
+{
+	if (nullptr == _Client)
+		return;
+
+	FBufferInfo* sendContext = CMemoryPoolManager::GetInstance()->Get();
+	
+	// 풀이 부족할 경우에는 비정상적인 상황
+	if (nullptr == sendContext)
+	{
+		long long droppedCnt = 0;
+		{
+			std::lock_guard<std::mutex> lock(_Client->SendMutex);
+
+			droppedCnt = static_cast<long long>(_Client->SendQueue.size());
+			_Client->SendQueue.clear();
+			_Client->SendInProgress = false;
+		}
+
+		if (droppedCnt > 0)
+		{
+			mQueuedPacketCount.fetch_sub(droppedCnt);
+			mDroppedSendCount.fetch_add(droppedCnt);
+		}
+
+		return;
+	}
+	
+	size_t batchCnt = 0;
+
+	{
+		std::lock_guard<std::mutex> lock(_Client->SendMutex);
+		
+		if (_Client->IsClosing.load() || _Client->SendQueue.empty())
+		{
+			_Client->SendInProgress = false;
+		}
+		else
+		{
+			batchCnt = (std::min)(_Client->SendQueue.size(),
+				static_cast<size_t>(MAX_BATCH_PACKET_COUNT));
+
+			for (size_t Index = 0; Index < batchCnt; ++Index)
+			{
+				const FChatPacket& packet = _Client->SendQueue.front();
+				std::memcpy(sendContext->Buffer + Index * sizeof(FChatPacket),
+					&packet, sizeof(FChatPacket));
+
+				_Client->SendQueue.pop_front();
+			}
+		}
+	}
+
+	// 큐가 비어있던 경우에는 메모리 반납
+	if (0 == batchCnt)
+	{
+		CMemoryPoolManager::GetInstance()->Release(sendContext);
+		return;
+	}
+
+	mQueuedPacketCount.fetch_sub(static_cast<long long>(batchCnt));
+	
+	ZeroMemory(&sendContext->Overlapped, sizeof(sendContext->Overlapped));
+
+	sendContext->rwMode = IO_MODE::WRITE;
+	sendContext->PacketCount = batchCnt;
+	sendContext->TotalBytes = batchCnt * sizeof(FChatPacket);
+	sendContext->TransferredBytes = 0;
+	sendContext->WSABuf.buf = sendContext->Buffer;
+	sendContext->WSABuf.len = static_cast<ULONG>(sendContext->TotalBytes);
+	
+	// 새로운 배치 하나가 진행 상태에 들어감
+	_Client->PendingSendCount.fetch_add(1);
+	mPendingSendCount.fetch_add(1);
+
+	if (!RegisterSend(_Client, sendContext))
+	{
+		_Client->PendingSendCount.fetch_sub(1);
+		mPendingSendCount.fetch_sub(1);
+
+		FailSend(_Client, sendContext);
+	}
+}
+
+void CServer::CompleteSend(FClient* _Client, FBufferInfo* _SendContext)
+{
+	if (nullptr == _Client || nullptr == _SendContext)
+		return;
+
+	const long long packetCount = static_cast<long long>(_SendContext->PacketCount);
+
+	CMemoryPoolManager::GetInstance()->Release(_SendContext);
+
+	bool bStartNext = false;
+	{
+		std::lock_guard<std::mutex> lock(_Client->SendMutex);
+
+		if (_Client->IsClosing.load())
+		{
+			_Client->SendInProgress = false;
+		}
+		else if (_Client->SendQueue.empty())
+		{
+			_Client->SendInProgress = false;
+		}
+		else
+		{
+			// 다음 배치까지 송신 소유권 유지
+			bStartNext = true;
+		}
+	}
+
+	if (bStartNext)
+		PostNextBatch(_Client);
+}
+
+void CServer::FailSend(FClient* _Client, FBufferInfo* _SendContext)
+{
+	if (nullptr == _SendContext)
+	{
+		if (_Client)
+			ExitClient(_Client);
+
+		return;
+	}
+
+	const long long failedPacketCount = static_cast<long long>(_SendContext->PacketCount);
+
+	CMemoryPoolManager::GetInstance()->Release(_SendContext);
+
+	if (failedPacketCount > 0)
+	{
+		mDroppedSendCount.fetch_add(failedPacketCount);
+	}
+
+	if (_Client)
+	{
+		ExitClient(_Client);
+	}
 }

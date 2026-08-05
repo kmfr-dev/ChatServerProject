@@ -24,6 +24,13 @@ struct FClient
 
 	std::atomic<bool> IsClosing = false;
 	std::atomic<long long> PendingSendCount = 0;
+	std::mutex SendMutex;
+	
+	// Batching 작업
+	// SendQueue : 아직 송신 배치에 포함되지 않은 논리 패킷
+	std::deque<FChatPacket> SendQueue;
+	// 이 클라이언트 소켓에 WSASend가 진행 중인지에 대한 여부
+	bool SendInProgress = false;
 };
 
 class CServer
@@ -95,13 +102,22 @@ private:
 	void AppendRecvData(FClient* _Client, const char* _Data, size_t _RecvBytes);
 	void ProcessPacket(FClient* _Client, const FChatPacket& _Packet);
 
+private:
+	bool EnqueueSend(FClient* _Client, const FChatPacket& _Packet);
+	void PostNextBatch(FClient* _Client);
+	void CompleteSend(FClient* _Client, FBufferInfo* _SendContext);
+	void FailSend(FClient* _Client, FBufferInfo* _SendContext);
+
+
 	// Load Test
 private:
+	std::atomic<long long> mQueuedPacketCount = 0;
 	std::atomic<long long> mPendingSendCount = 0;
 	std::atomic<long long> mDroppedSendCount = 0;
 	std::atomic<long long> mConnectedClientCount = 0;
 
 public:
+	long long GetQueuedPacketCount() const { return mQueuedPacketCount.load(); }
 	long long GetPendingSendCount() const { return mPendingSendCount.load(); }
 	long long GetDroppedSendCount() const { return mDroppedSendCount.load(); }
 	long long GetConnectedClientCount() const { return mConnectedClientCount.load(); }
