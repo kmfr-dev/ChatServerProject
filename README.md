@@ -5,7 +5,7 @@
 >
 - 프로젝트 기록 **:** [https://app.notion.com/p/IOCP-35db2c108dee808f877efc699a1f7e3c?source=copy_link]
 - 프로젝트 개요 : IOCP 기반 채팅 서버 프로젝트
-- 개발 기간 : 2026년 05월 12일 ~ 2026년 05월 27일
+- 개발 기간 : 2026년 05월 12일 ~ 2026년 06월 12일
 - 개발 인원 : 1명
 - 기술 스택 : C++, WinAPI, WinSock, DirectX11 ,ImGUI
 # Video
